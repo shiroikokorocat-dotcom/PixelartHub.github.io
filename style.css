@@ -1,0 +1,451 @@
+#fondo-mosaico {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url('fondo.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center center;
+    image-rendering: pixelated;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    color: #fff;
+    text-align: center;
+    background: none;
+}
+h1 {
+    margin: 8px 0 6px 0; /* reduce espacio vertical del título */
+    font-size: clamp(26px, 4.5vw, 56px);
+    line-height: 1.1;
+    font-weight: 700;
+    font-family: 'Silkscreen', system-ui, Arial, sans-serif; /* aplicar Silkscreen solo al título */
+    position: relative;
+    z-index: 2; /* por encima del canvas y el grid */
+    /* contorno para legibilidad sobre el fondo */
+    text-shadow:
+        2px 0 0 #000,
+        -2px 0 0 #000,
+        0 2px 0 #000,
+        0 -2px 0 #000,
+        1px 1px 0 #000,
+        -1px 1px 0 #000,
+        1px -1px 0 #000,
+        -1px -1px 0 #000,
+        0 0 10px rgba(0,0,0,0.5);
+}
+#info-panel .header h2 {
+    font-family: 'Press Start 2P', system-ui, Arial, sans-serif; /* fuente pixelada para subtítulo */
+    letter-spacing: 0.5px;
+}
+#canvas-container {
+    display: inline-block;
+    position: relative;
+    z-index: 1; /* por encima de las nubes (canvas fixed con z-index:0) */
+    margin-top: 8px; /* baja un poco la grid debajo del título */
+}
+#pixelart-canvas {
+    border: 2px solid #555;
+    background: #111;
+    cursor: pointer;
+}
+.ground {
+    image-rendering: pixelated;
+    background:
+        linear-gradient(#4caf50, #4caf50) top/100% 4px no-repeat,  /* capa de pasto */
+        repeating-linear-gradient(
+            to bottom,
+            #6b472a 0px,
+            #6b472a 2px,
+            #5b3d24 2px,
+            #5b3d24 4px
+        ); /* tierra con bandas */
+    border-top: 2px solid #2e7d32; /* borde de pasto más oscuro */
+}
+
+/* pequeños pastos (matas) pixeladas */
+.grass-tuft {
+    position: absolute;
+    width: 2px;  /* tamaño base de pixel */
+    height: 2px;
+    background: #66bb6a; /* verde principal */
+    image-rendering: pixelated;
+    pointer-events: none;
+    /* dibuja hojas laterales y altura con sombras en bloques de 2px */
+    box-shadow:
+        0 -2px #66bb6a,
+        0 -4px #66bb6a,
+        -2px -2px #5aa65e,
+        2px -2px #5aa65e,
+        -2px 0 #58a15c,
+        2px 0 #58a15c;
+}
+
+/* flores pixeladas con pétalos en cruz y pequeño tallo */
+.flower {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--fl, #ffd54f); /* color de pétalo */
+    image-rendering: pixelated;
+    pointer-events: none;
+    box-shadow:
+        -2px 0 var(--fl, #ffd54f),
+        2px 0 var(--fl, #ffd54f),
+        0 -2px var(--fl, #ffd54f),
+        0 2px var(--fl, #ffd54f),
+        0 4px #2e7d32; /* tallo verde */
+}
+/* ondulaciones de pasto que caen sobre la tierra */
+.grass-overhang {
+    position: absolute;
+    width: 2px;
+    height: 4px; /* se ajustará por inline style */
+    background: #4caf50;
+    image-rendering: pixelated;
+    pointer-events: none;
+    box-shadow:
+        0 1px 0 rgba(0,0,0,0.15);
+}
+/* piedras pixeladas en el piso */
+.stone {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--st, #8d8d8d);
+    image-rendering: pixelated;
+    pointer-events: none;
+    /* forma compacta 3x3 aprox usando bloques de 2px */
+    box-shadow:
+        2px 0   var(--st, #8d8d8d),
+        0   2px var(--st, #8d8d8d),
+        2px 2px var(--st, #8d8d8d),
+        -2px 0  var(--st, #8d8d8d);
+}
+.stone.multi {
+    /* multicolor: colores provistos por variables */
+    background: var(--c1, #c66);
+    box-shadow:
+        2px 0   var(--c2, #e6a23c),
+        0   2px var(--c3, #6fcf97),
+        2px 2px var(--c4, #56ccf2),
+        -2px 0  var(--c5, #bb6bd9);
+    will-change: filter;
+    animation: iridescent-shift 2.8s linear infinite;
+}
+/* diamante (rombo de 5 bloques) */
+.stone.diamond {
+    background: var(--di, #cfe9ff);
+    box-shadow:
+        2px 0   var(--di, #cfe9ff),
+        -2px 0  var(--di, #cfe9ff),
+        0   2px var(--di, #cfe9ff),
+        0  -2px var(--di, #cfe9ff);
+    will-change: filter;
+    animation: diamond-sparkle 1.8s ease-in-out infinite;
+}
+
+/* Animación de brillo para diamantes */
+@keyframes diamond-sparkle {
+    0%, 100% { filter: brightness(1) saturate(1) drop-shadow(0 0 0 rgba(200, 235, 255, 0)); }
+    50% { filter: brightness(1.35) saturate(1.15) drop-shadow(0 0 6px rgba(200, 235, 255, 0.9)); }
+}
+
+/* Efecto tornasol (iridiscente) para multicolor */
+@keyframes iridescent-shift {
+    0%   { filter: hue-rotate(0deg)   saturate(1.1) brightness(1.0) drop-shadow(0 0 0 rgba(255,255,255,0.15)); }
+    25%  { filter: hue-rotate(90deg)  saturate(1.25) brightness(1.05) drop-shadow(0 0 2px rgba(255,255,255,0.25)); }
+    50%  { filter: hue-rotate(180deg) saturate(1.3)  brightness(1.08) drop-shadow(0 0 3px rgba(255,255,255,0.3)); }
+    75%  { filter: hue-rotate(270deg) saturate(1.25) brightness(1.04) drop-shadow(0 0 2px rgba(255,255,255,0.25)); }
+    100% { filter: hue-rotate(360deg) saturate(1.1)  brightness(1.0) drop-shadow(0 0 0 rgba(255,255,255,0.15)); }
+}
+#info-panel {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 80vw;
+    max-width: 700px;
+    /* Ajustes configurables para el nombre */
+    --name-min-px: 30;   /* tamaño mínimo en px */
+    --name-max-px: 64;   /* tamaño máximo en px */
+    --name-initial-px: 40; /* tamaño inicial al mostrar */
+    --name-two-line-threshold-px: 40; /* si el tamaño cae por debajo, usar 2 líneas */
+    background: transparent; /* la textura se aplica con ::before */
+    padding: 20px 30px 30px 30px;
+    border-radius: 0;
+    box-shadow: 0 -2px 8px #0006;
+    display: block;
+    min-width: 250px;
+    z-index: 1001;
+    color: #fff;
+    font-size: 1.1em;
+    text-align: left;
+    position: fixed;
+    overflow: hidden; /* recorta la textura al panel */
+    /* transiciones ultra rápidas (50ms) para cambios veloces de personaje */
+    transition: bottom 50ms ease-out, opacity 50ms ease-out;
+    will-change: bottom, opacity;
+}
+#info-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    image-rendering: pixelated;
+    z-index: 0; /* detrás del contenido */
+    /* Textura de tablas de madera en pixelart */
+    background:
+        /* Vetillas verticales sutiles */
+        repeating-linear-gradient(
+            to right,
+            rgba(0,0,0,0.10) 0px,
+            rgba(0,0,0,0.10) 1px,
+            transparent 1px,
+            transparent 4px
+        ),
+        /* Planchas horizontales con separadores */
+        repeating-linear-gradient(
+            to bottom,
+            #5b3a23 0px,    /* borde superior oscuro */
+            #5b3a23 1px,
+            #7a5032 1px,    /* relleno de madera */
+            #7a5032 20px,
+            #613f29 20px,   /* línea separadora */
+            #613f29 21px,
+            #744a2f 21px,   /* siguiente tabla */
+            #744a2f 40px,
+            #5b3a23 40px,
+            #5b3a23 41px
+        );
+    background-blend-mode: multiply;
+}
+#info-panel .info-content { position: relative; z-index: 1; }
+#info-panel .info-content {
+    display: grid;
+    grid-template-columns: auto 4px 1fr; /* columna izquierda se adapta al ancho que requiera la altura */
+    align-items: start;
+    align-content: start; /* no estirar verticalmente */
+    gap: 16px;
+}
+#info-panel .info-left {
+    display: flex;
+    align-items: flex-start;   /* colocar arriba */
+    justify-content: flex-start; /* y a la izquierda */
+    padding: 1px; /* espacio extra alrededor del personaje */
+    flex-direction: column;
+}
+
+#segment-preview {
+    width: auto;                 /* conservar proporción */
+    max-width: var(--preview-max-vw, 70vw); /* límite horizontal (corregido a vw) */
+    height: min(var(--preview-max-vh, var(--sprite-max-vh, 50vh)), 100vh); /* escalar hacia arriba hasta el tope de vh */
+    display: block; /* elimina gap de imagen inline */
+    image-rendering: pixelated;
+    background: rgba(0, 0, 0, 0.5); /* fondo medianamente transparente */
+    border: 4px solid #333;
+    margin: 8px 0; /* espaciado compacto */
+}
+/* estado de carga similar al PFP */
+#segment-preview.preview-loading {
+    background: linear-gradient(90deg, #1f1f1f 0%, #2a2a2a 50%, #1f1f1f 100%);
+    background-size: 200% 100%;
+    animation: pfp-shimmer 1.2s linear infinite;
+}
+.stats {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;           /* más compacto entre filas */
+    margin: 4px 0 0 0;  /* más pegado al PFP */
+    border: 1px solid #3a3a3a;   /* marco fino */
+    box-shadow: inset 0 0 0 1px #00000066; /* realce interno sutil */
+    background: rgba(0,0,0,0.15);
+    padding: 3px 4px;   /* aún más compacto */
+}
+.stats-title {
+    font-size: 8px;     /* título ligeramente más pequeño */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #f0f0f0;
+    opacity: 0.9;
+}
+.stat-row {
+    display:flex; align-items:center;
+    gap: 6px;           /* menos espacio horizontal */
+    font-size: 5px;
+}
+.stat-row .stat-label {
+    color:#dcdcdc;
+    text-align: right;
+    width: 24px;         /* un poco más estrecha */
+    font-size: 9px;      /* más compacto */
+}
+.stat-row .stat-bar {
+    flex: 1;
+    height: 2px;          /* grosor 2px (ajustable a 1px si se desea) */
+    background:#151515;   /* carril oscuro */
+    position: relative;
+}
+.stat-row .stat-bar .fill {
+    position:absolute; left:0; top:0; bottom:0;
+    width:0%;
+    background: #7cb342;  /* se sobrescribe por JS según porcentaje */
+    image-rendering: pixelated;
+}
+.stat-row .stat-value { display:none; }
+#info-panel .divider {
+    position: relative;
+    width: 4px; /* más visible */
+    /* que el grid lo estire según el contenido, sin forzar 100% */
+    height: auto;
+    align-self: stretch;
+    image-rendering: pixelated;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.10) 0px,
+            rgba(255,255,255,0.10) 2px,
+            transparent 2px,
+            transparent 6px
+        ),
+        linear-gradient(to right, #2b2b2b, #3a3a3a 50%, #2b2b2b);
+    border-left: 1px solid rgba(0,0,0,0.4);
+    border-right: 1px solid rgba(255,255,255,0.15);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35);
+}
+#info-panel .divider::before,
+#info-panel .divider::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background: #6f6f6f;
+    border: 1px solid #444;
+    box-shadow: inset 1px 1px 0 #9a9a9a, inset -1px -1px 0 #3a3a3a;
+}
+#info-panel .divider::before { top: 10px; }
+#info-panel .divider::after { bottom: 10px; }
+#info-panel .info-right {
+    display: grid;
+    grid-template-columns: 80px 1fr; /* 2 columnas: PFP a la izquierda, contenido a la derecha */
+    grid-template-areas:
+        "profile header"
+        "stats   socials";
+    gap: 12px 16px;
+    min-width: 0; /* permitir que el grid se contraiga dentro del panel */
+    align-content: start; /* evitar estiramiento vertical */
+    grid-auto-rows: min-content; /* filas con alto mínimo requerido */
+}
+#info-panel .header { grid-area: header; display:flex; align-items:center; gap:10px; min-width:0; overflow:hidden; }
+#info-panel .header h2 {
+    margin: 0;
+    font-size: var(--name-initial-px, 28px); /* tamaño base configurado */
+    flex: 1 1 auto;    /* ocupar el espacio disponible */
+    min-width: 0;      /* permitir que flex reduzca el ancho */
+    width: 100%;       /* asegurar que tome todo el ancho del header */
+    padding-right: 6px; /* margen de seguridad para evitar cortes al borde derecho */
+    white-space: nowrap;        /* en una línea */
+    overflow: hidden;           /* cortar exceso */
+    text-overflow: ellipsis;    /* puntos suspensivos si no cabe */
+}
+/* Variante a 2 líneas con clamp */
+#info-panel .header h2.two-line {
+    white-space: normal;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.15;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+#social-links { display:flex; flex-direction: column; gap:6px; align-items:flex-start; width: 100%; }
+.social-row { display:flex; align-items:center; gap:6px; width: 100%; min-width: 0; }
+.social-row .site-label { color:#e0e0e0; font-weight: 700; font-size: 11px; width: 28px; text-align: right; opacity: 0.9; }
+#social-links .social {
+    color:#7ecbff;
+    text-decoration: underline;
+    font-size: 0.95em;
+    display:block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+#social-links .hidden { display:none; }
+#preview-controls.dev-controls { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2); display:flex; flex-direction: column; gap:8px; }
+#preview-controls .control-title { font-size: 10px; text-transform: uppercase; opacity: 0.9; letter-spacing: 0.5px; }
+#preview-controls .control-row { display:grid; grid-template-columns: 92px 1fr 44px; align-items:center; gap:8px; }
+#preview-controls label { font-size: 11px; color:#eaeaea; }
+#preview-controls input[type="range"] { width: 100%; }
+#preview-controls .control-val { font-size: 11px; color:#ddd; text-align:right; min-width:44px; }
+#info-panel .profile { grid-area: profile; align-self: start; }
+#pfp-image {
+    width: 80px;
+    height: 80px;
+    max-height: 20vh; /* pequeña salvaguarda en pantallas muy bajas/altas */
+    object-fit: cover;
+    border:1px solid #333;
+    background:#222;
+    display:block;
+}
+#pfp-image.pfp-loading {
+    background: linear-gradient(90deg, #242424 0%, #333333 50%, #242424 100%);
+    background-size: 200% 100%;
+    animation: pfp-shimmer 1.2s linear infinite;
+}
+
+@keyframes pfp-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+#info-panel .meta { grid-area: socials; display:flex; flex-direction: column; gap:8px; }
+#info-panel #stats { grid-area: stats; }
+#info-panel.hidden {
+    display: none;
+}
+#user-image {
+    max-width: 100px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+img {
+    box-shadow:
+        0 1px 8px rgba(0, 0, 0, 0.267), /* sombra externa más sutil */
+        0 0 0 5px #0002 inset; /* sombra interna más suave */
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+.highlight {
+    box-shadow: 0 0 0 4px #ff0, 0 0 10px #ff0;
+}
+
+/* utilidades */
+.hidden { display: none !important; }
+
+/* Avatar PFP volador */
+.pfp-flyer {
+    position: fixed;
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border: 1px solid #333;
+    background: #222;
+    border-radius: 10px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+    /* Debe verse delante de las nubes (z:0) y detrás de los personajes (contenedor z:1) */
+    z-index: 0;
+    pointer-events: none;
+    will-change: transform;
+}

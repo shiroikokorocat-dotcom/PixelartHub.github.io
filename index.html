@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Select a Character</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="fondo-mosaico"></div>
+    <canvas id="nubes-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;"></canvas>
+    <h1>Select a<br>Character</h1>
+    <div id="canvas-container">
+        <canvas id="pixelart-canvas"></canvas>
+    </div>
+    <div id="info-panel" class="hidden">
+        <div class="info-content">
+            <div class="info-left">
+                <img id="segment-preview" alt="Vista previa" />
+            </div>
+            <div class="divider" aria-hidden="true"></div>
+            <div class="info-right">
+                <div class="header">
+                    <h2 id="personaje-nombre"></h2>
+                </div>
+                <div class="profile">
+                    <img id="pfp-image" alt="Perfil" />
+                </div>
+                <div id="stats" class="stats">
+                    <div class="stats-title">Stats:</div>
+                </div>
+                <div class="meta">
+                    <div id="social-links">
+                        <div class="social-row"><span class="site-label">X</span><a id="link-x" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                        <div class="social-row"><span class="site-label">VG</span><a id="link-vgen" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                        <div class="social-row"><span class="site-label">KF</span><a id="link-kofi" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                        <div class="social-row"><span class="site-label">YT</span><a id="link-youtube" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                        <div class="social-row"><span class="site-label">TTV</span><a id="link-twitch" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                        <div class="social-row"><span class="site-label">PF</span><a id="link-portfolio" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                    </div>
+                    <div id="preview-controls" class="dev-controls">
+                        <div class="control-title">Preview size</div>
+                        <div class="control-row">
+                            <label for="slider-vh">Alt. máx (vh)</label>
+                            <input type="range" id="slider-vh" min="10" max="80" step="1">
+                            <span id="value-vh" class="control-val"></span>
+                        </div>
+                        <div class="control-row">
+                            <label for="slider-vw">Anch. máx (vw)</label>
+                            <input type="range" id="slider-vw" min="10" max="80" step="1">
+                            <span id="value-vw" class="control-val"></span>
+                        </div>
+                    </div>
+                </div>
+                <img id="user-image" class="hidden" />
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+    // PFP volador: al clickear la imagen de PFP del panel, lanza esa misma PFP en parábola L→R o R→L
+    (function() {
+        function currentPfpSrc() {
+            const el = document.getElementById('pfp-image');
+            if (!el) return null;
+            const src = el.getAttribute('src') || '';
+            // ignorar placeholder transparente u origen vacío
+            if (!src || /^data:image\/gif/i.test(src)) return null;
+            return src;
+        }
+        function pickPfpSrc() {
+            try {
+                // Priorizar el PFP actualmente mostrado en el panel
+                const cur = currentPfpSrc();
+                if (cur) return cur;
+                const segs = Array.isArray(window.segmentos) ? window.segmentos : [];
+                // Si hay selección/hover actual, priorizar su PFP
+                if (Number.isInteger(window.currentIdx) && segs[window.currentIdx]) {
+                    const v = segs[window.currentIdx].perfil;
+                    if (v && v !== '-' && String(v).trim()) {
+                        return String(v).replace(/\\\\/g,'/').replace(/^\/*/,'');
+                    }
+                }
+                // Fallback: cualquiera con PFP
+                const candidates = segs.map(s => (s && s.perfil) ? String(s.perfil).replace(/\\\\/g,'/').replace(/^\/*/,'') : null)
+                    .filter(v => v && v !== '-' && !/\s*$/.test(v));
+                if (candidates.length === 0) return null;
+                return candidates[Math.floor(Math.random() * candidates.length)];
+            } catch { return null; }
+        }
+        function launchFlyer(fromLeft = Math.random() < 0.5) {
+            const src = pickPfpSrc();
+            if (!src) return;
+            const img = document.createElement('img');
+            img.className = 'pfp-flyer';
+            // iniciar justo fuera de la pantalla por la izquierda o derecha
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const startX = fromLeft ? -100 : vw + 100;
+            const endX = fromLeft ? vw + 120 : -120;
+            // Rango vertical ampliado para mayor variedad de parábolas
+            const startY = Math.floor(vh * (0.02 + Math.random() * 0.58)); // 2-60% altura
+            const apexY = Math.floor(vh * (0.00 + Math.random() * 0.32));  // 0-32% (pico alto)
+            const endY  = Math.floor(vh * (0.40 + Math.random() * 0.55));  // 40-95%
+            const rotDir = fromLeft ? 1 : -1;
+            const duration = 3200 + Math.floor(Math.random() * 1200); // 3.2s - 4.4s
+            const startTime = performance.now();
+            // Posición controlada únicamente por transform para evitar offset doble
+            img.style.left = '0px';
+            img.style.top = '0px';
+            img.style.transform = `translate3d(${startX}px, ${startY}px, 0) rotate(0deg)`;
+
+            // precarga para evitar flash roto
+            const pre = new Image();
+            pre.onload = () => {
+                img.src = pre.src;
+                document.body.appendChild(img);
+                requestAnimationFrame(tick);
+            };
+            pre.onerror = () => {/* omitir si falla */};
+            pre.src = src;
+
+            function parabola(t) {
+                // Interpolación paramétrica con un vértice (apex) y extremos (start, end)
+                // Lerp X lineal, Y describe parábola con apex
+                const x = startX + (endX - startX) * t;
+                // Usar parábola a través de (0,startY), (0.5,apexY), (1,endY)
+                // y(t) = a t^2 + b t + c, con c = startY
+                const c = startY;
+                const b = 4*apexY - endY - 3*startY;
+                const a = endY - b - c;
+                const y = a*t*t + b*t + c;
+                return { x, y };
+            }
+            function tick(now) {
+                const elapsed = now - startTime;
+                const t = Math.min(1, elapsed / duration);
+                const p = parabola(t);
+                const rot = (t * 720 * rotDir); // 2 vueltas
+                img.style.transform = `translate3d(${Math.round(p.x)}px, ${Math.round(p.y)}px, 0) rotate(${rot.toFixed(1)}deg)`;
+                // remover si salió por completo
+                if (t >= 1 || p.x < -160 || p.x > (vw + 160) || p.y < -160 || p.y > (vh + 160)) {
+                    img.remove();
+                    return;
+                }
+                requestAnimationFrame(tick);
+            }
+        }
+        // esperar a que app.js cargue los segmentos globales
+        function ready() {
+            return Array.isArray(window.segmentos) && window.segmentos.length > 0;
+        }
+        // Trigger: click en la imagen de PFP del panel de información
+        function bindTrigger() {
+            const pfp = document.getElementById('pfp-image');
+            if (!pfp) return;
+            pfp.addEventListener('click', () => {
+                // alternar dirección aleatoriamente
+                launchFlyer(Math.random() < 0.5);
+            });
+        }
+        if (ready()) bindTrigger();
+        else {
+            const id = setInterval(() => {
+                if (ready()) { clearInterval(id); bindTrigger(); }
+            }, 300);
+        }
+    })();
+    </script>
+</body>
+</html>
