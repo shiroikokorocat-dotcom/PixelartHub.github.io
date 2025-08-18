@@ -116,6 +116,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 const infoPanel = document.getElementById('info-panel');
+const panelCloseBtn = document.getElementById('panel-close');
 const nombreElem = document.getElementById('personaje-nombre');
 const xElem = document.getElementById('personaje-x');
 const statsEl = document.getElementById('stats');
@@ -125,13 +126,17 @@ const userImage = document.getElementById('user-image');
 const segmentPreview = document.getElementById('segment-preview');
 const pfpImage = document.getElementById('pfp-image');
 const linkX = document.getElementById('link-x');
+const linkBluesky = document.getElementById('link-bluesky');
 const linkVgen = document.getElementById('link-vgen');
 const linkKofi = document.getElementById('link-kofi');
 const linkYoutube = document.getElementById('link-youtube');
 const linkTwitch = document.getElementById('link-twitch');
 const linkPortfolio = document.getElementById('link-portfolio');
+const paletteWrap = document.getElementById('palette');
+const paletteSwatches = document.getElementById('color-palette');
 // Etiquetas visibles a la izquierda del link
 if (linkX) linkX.dataset.site = 'X';
+if (linkBluesky) linkBluesky.dataset.site = 'BS';
 if (linkVgen) linkVgen.dataset.site = 'VG';
 if (linkKofi) linkKofi.dataset.site = 'KF';
 if (linkYoutube) linkYoutube.dataset.site = 'YT';
@@ -154,11 +159,14 @@ function attachConfirm(linkEl) {
         if (!ok) {
             e.preventDefault();
             e.stopPropagation();
+        } else {
+            window.SFX?.play('clickA', 0.4);
         }
         // si acepta, el link con target=_blank abrirá nueva pestaña por defecto
     });
 }
 attachConfirm(linkX);
+attachConfirm(linkBluesky);
 attachConfirm(linkVgen);
 attachConfirm(linkKofi);
 attachConfirm(linkYoutube);
@@ -276,7 +284,7 @@ function updateSafeZone() {
 }
 
 function cargarSegmentos() {
-    fetch('segmentos/segmentos.json')
+    fetch('assets/segmentos/segmentos.json')
         .then(res => res.json())
         .then(data => {
             segmentos = data;
@@ -428,10 +436,13 @@ function mostrarSegmentos() {
         }
 
     const img = document.createElement('img');
-        // Asegura la ruta relativa
-        let imgSrc = segmento.imagen.replace(/\\/g, '/');
-        if (!imgSrc.startsWith('segmentos/')) {
-            imgSrc = 'segmentos/' + imgSrc.split('/').pop();
+        // Asegura la ruta relativa a assets/segmentos
+        let imgSrc = (segmento.imagen || '').toString().replace(/\\/g, '/');
+        if (!/^https?:\/\//i.test(imgSrc)) {
+            const file = imgSrc.split('/').pop();
+            if (!imgSrc.startsWith('assets/segmentos/')) {
+                imgSrc = 'assets/segmentos/' + file;
+            }
         }
         // Marcar estado de carga para evitar icono roto y resalto cuando no hay imagen
         img.dataset.loaded = '0';
@@ -481,7 +492,7 @@ function mostrarSegmentos() {
         hitbox.style.background = 'transparent';
         hitbox.style.zIndex = '5';
         // Eventos en la hitbox (estabilizados con pequeños delays)
-        hitbox.addEventListener('pointerenter', () => {
+    hitbox.addEventListener('pointerenter', () => {
             if (isLocked) return;
             hoverIdx = idx;
             // cancelar cierre si el puntero vuelve
@@ -492,8 +503,9 @@ function mostrarSegmentos() {
             hoverOpenTimerId = setTimeout(() => {
                 if (isLocked) return;
                 if (lastHoverIdxForOpen !== idx) return;
-                resaltarSegmento(idx);
-                mostrarInfo(segmento);
+        // abrir con sonido de hover (sonará en mostrarInfo)
+        resaltarSegmento(idx);
+        mostrarInfo(segmento);
             }, HOVER_OPEN_DELAY);
         });
         // Evitar spam de abrir mientras se mueve dentro de la misma área (no necesitamos mousemove)
@@ -522,8 +534,10 @@ function mostrarSegmentos() {
         if (hoverCloseTimerId) { clearTimeout(hoverCloseTimerId); hoverCloseTimerId = null; }
                 isLocked = true;
                 lockedIdx = idx;
+                window.SFX?.play('clickB', 0.45);
                 resaltarSegmento(idx);
-                mostrarInfo(segmento);
+                // Suprimir SFX de apertura para priorizar el click
+                mostrarInfo(segmento, { suppressOpenSfx: true });
                 // Evita que el manejador global de documento desbloquee inmediatamente
                 skipNextDocUnlock = true;
             } else if (lockedIdx !== idx) {
@@ -531,8 +545,10 @@ function mostrarSegmentos() {
         if (hoverOpenTimerId) { clearTimeout(hoverOpenTimerId); hoverOpenTimerId = null; }
         if (hoverCloseTimerId) { clearTimeout(hoverCloseTimerId); hoverCloseTimerId = null; }
                 lockedIdx = idx;
+                window.SFX?.play('tapB', 0.35);
                 resaltarSegmento(idx);
-                mostrarInfo(segmento);
+                // Suprimir SFX de apertura para priorizar el click
+                mostrarInfo(segmento, { suppressOpenSfx: true });
                 // Evitar que el click de cambio lo interprete como desbloqueo
                 skipNextDocUnlock = true;
             }
@@ -558,7 +574,13 @@ function ajustarTamañoContainer() {
 }
 
 function resaltarSegmento(idx) {
-    quitarResaltado();
+    // Si es el mismo índice ya resaltado, no hacer nada
+    if (currentIdx === idx) return;
+    // Limpiar solo elementos visuales de highlight previos, sin cerrar el panel
+    const hcPrev = document.getElementById('highlight-canvas');
+    if (hcPrev) hcPrev.style.display = 'none';
+    const clonePrev = document.getElementById('highlight-img-clone');
+    if (clonePrev) clonePrev.remove();
     const segmento = segmentos[idx];
     const img = segmentoElems[idx];
     // Si la imagen del sprite no cargó o es el placeholder, no intentes resaltar; además, asegúrate de ocultar cualquier resto previo
@@ -665,7 +687,7 @@ function quitarResaltado() {
     ocultarInfo();
 }
 
-function mostrarInfo(segmento) {
+function mostrarInfo(segmento, opts = {}) {
     // Cancelar ocultado en curso y avanzar el token para invalidar callbacks de hide previos
     panelAnimToken++;
     if (hideTimerId) { clearTimeout(hideTimerId); hideTimerId = null; }
@@ -677,14 +699,20 @@ function mostrarInfo(segmento) {
     infoPanel.style.pointerEvents = 'none';
     infoPanel.style.bottom = '0';
     infoPanel.style.opacity = '1';
+    if (!opts.suppressOpenSfx) {
+        window.SFX?.play('switchA', 0.18);
+    }
 
     nombreElem.textContent = segmento.nombre;
     // No ajustar aún: el panel puede estar oculto y no es medible
     // Etiquetas visibles a la izquierda del link
     // Preview del segmento (imagen del sprite) con misma mecánica que el PFP
-    let imgSrc = segmento.imagen.replace(/\\/g, '/');
-    if (!imgSrc.startsWith('segmentos/')) {
-        imgSrc = 'segmentos/' + imgSrc.split('/').pop();
+    let imgSrc = (segmento.imagen || '').toString().replace(/\\/g, '/');
+    if (!/^https?:\/\//i.test(imgSrc)) {
+        const file = imgSrc.split('/').pop();
+        if (!imgSrc.startsWith('assets/segmentos/')) {
+            imgSrc = 'assets/segmentos/' + file;
+        }
     }
     const trySetPreview = (primary, triedAlt = false) => {
         const reqId = (segmentPreview._reqId = (segmentPreview._reqId || 0) + 1);
@@ -703,6 +731,8 @@ function mostrarInfo(segmento) {
             segmentPreview.src = pre.src;
             segmentPreview.classList.remove('preview-loading');
             segmentPreview.classList.remove('hidden');
+            // Calcular paleta de colores del sprite cargado
+            computeAndRenderPalette(pre, reqId);
         };
         pre.onerror = () => {
             if (segmentPreview._reqId !== reqId) return;
@@ -713,6 +743,8 @@ function mostrarInfo(segmento) {
                 segmentPreview.alt = '';
                 segmentPreview.classList.add('preview-loading');
                 segmentPreview.classList.remove('hidden');
+                // Limpiar paleta si no hay preview válido
+                renderPalette([]);
                 return;
             }
             let alt = primary;
@@ -725,6 +757,7 @@ function mostrarInfo(segmento) {
                 segmentPreview.alt = '';
                 segmentPreview.classList.add('preview-loading');
                 segmentPreview.classList.remove('hidden');
+                renderPalette([]);
                 return;
             }
             trySetPreview(alt, true);
@@ -795,10 +828,20 @@ function mostrarInfo(segmento) {
     }
     // Imagen de perfil si existe
     if (segmento.perfil) {
-        let pfpSrc = segmento.perfil.replace(/\\/g, '/');
-        // Usar la ruta tal cual (carpeta 'pfp/' en la raíz del proyecto)
-        if (pfpSrc.startsWith('./')) pfpSrc = pfpSrc.slice(2);
-        if (pfpSrc.startsWith('/')) pfpSrc = pfpSrc.slice(1);
+        let pfpSrc = (segmento.perfil || '').toString().replace(/\\/g, '/');
+        // Normalizar a assets/pfp_web o assets/pfp según corresponda si es relativo
+        const isUrl = /^https?:\/\//i.test(pfpSrc);
+        if (!isUrl) {
+            pfpSrc = pfpSrc.replace(/^\.\//, '').replace(/^\//, '');
+            if (!pfpSrc.startsWith('assets/')) {
+                if (pfpSrc.startsWith('pfp_web/')) pfpSrc = 'assets/' + pfpSrc;
+                else if (pfpSrc.startsWith('pfp/')) pfpSrc = 'assets/' + pfpSrc;
+                else {
+                    // si solo viene el nombre, asumir pfp_web optimizado
+                    pfpSrc = 'assets/pfp_web/' + pfpSrc.split('/').pop();
+                }
+            }
+        }
         // Cargar con pequeño fallback entre .png y .jpg si el primero falla
         const trySet = (primary, triedAlt = false) => {
             const reqId = (pfpImage._reqId = (pfpImage._reqId || 0) + 1);
@@ -861,7 +904,8 @@ function mostrarInfo(segmento) {
     };
     const setSocial = (el, raw, type) => {
         const rowEl = el ? el.closest('.social-row') : null;
-        const v = (raw || '').toString().trim();
+        // limpiar espacios y caracteres invisibles (zero-width)
+        const v = (raw || '').toString().replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
         // Si el valor es vacío o es un guion "-", ocultar totalmente la fila
         if (!v || v === '-') {
             if (rowEl) rowEl.classList.add('hidden');
@@ -910,6 +954,32 @@ function mostrarInfo(segmento) {
                 if (!handle) { if (rowEl) rowEl.classList.add('hidden'); el.classList.add('hidden'); return; }
                 href = 'https://x.com/' + handle;
                 text = clamp(handle);
+                break;
+            }
+            case 'bluesky': {
+                // Bluesky: https://bsky.app/profile/{handle}
+                // Acepta: URL completa, @handle, handle con dominio (example.com o *.bsky.social) o DID (did:plc:...)
+                let handle = '';
+                const u = parseUrl(val);
+                if (u && /(^|\.)bsky\.app$/i.test(u.hostname)) {
+                    const segs = (u.pathname || '').split('/').filter(Boolean);
+                    const i = segs.indexOf('profile');
+                    if (i >= 0 && segs[i + 1]) handle = cleanHandle(segs[i + 1]);
+                }
+                if (!handle) {
+                    const raw = val.trim();
+                    if (/^did:plc:[a-z0-9]+$/i.test(raw)) {
+                        handle = raw;
+                    } else if (raw.startsWith('@')) {
+                        handle = cleanHandle(raw);
+                    } else if (/[.]/.test(raw)) {
+                        // contiene dominio, tomar tal cual
+                        handle = cleanHandle(raw);
+                    }
+                }
+                if (!handle) { if (rowEl) rowEl.classList.add('hidden'); el.classList.add('hidden'); return; }
+                href = 'https://bsky.app/profile/' + handle;
+                text = clamp(handle, 40);
                 break;
             }
             case 'discord': {
@@ -1008,11 +1078,34 @@ function mostrarInfo(segmento) {
         if (rowEl) rowEl.classList.remove('hidden');
     };
     setSocial(linkX, segmento.xCuenta || segmento.x || segmento.twitter, 'x');
+    setSocial(linkBluesky, segmento.bluesky || segmento.bsky, 'bluesky');
     setSocial(linkVgen, segmento.vgen, 'vgen');
     setSocial(linkKofi, segmento.kofi, 'kofi');
     setSocial(linkYoutube, segmento.youtube, 'youtube');
     setSocial(linkTwitch, segmento.twitch, 'twitch');
     setSocial(linkPortfolio, segmento.portfolio || segmento.portafolio || segmento.web || segmento.sitio, 'portfolio');
+    // Placeholder "Espacio en obras" si no hay redes visibles
+    try {
+        const socialWrap = document.getElementById('social-links');
+        if (socialWrap) {
+            const rows = Array.from(socialWrap.querySelectorAll('.social-row'));
+            const visibleRows = rows.filter(r => !r.classList.contains('hidden'));
+            let placeholder = socialWrap.querySelector('.social-placeholder');
+            if (visibleRows.length === 0) {
+                if (!placeholder) {
+                    placeholder = document.createElement('div');
+                    placeholder.className = 'social-placeholder';
+                    placeholder.setAttribute('aria-live', 'polite');
+                    placeholder.textContent = 'Just a cool user';
+                    socialWrap.appendChild(placeholder);
+                } else {
+                    placeholder.classList.remove('hidden');
+                }
+            } else if (placeholder) {
+                placeholder.classList.add('hidden');
+            }
+        }
+    } catch {}
     // Animación suave usando transiciones CSS (rápidas)
     if (!infoPanel.dataset.animated) {
         // Preparar estado inicial (oculto) y reflow, luego animar a visible
@@ -1048,6 +1141,7 @@ function ocultarInfo() {
     // Animar salida: desvanecer y deslizar ligeramente hacia abajo
     infoPanel.style.opacity = '0';
     infoPanel.style.bottom = '-10px';
+    window.SFX?.play('switchB', 0.18);
     // Bloquear interacción durante el fade-out para no robar hover del trigger
     infoPanel.style.pointerEvents = 'none';
     const myToken = panelAnimToken; // snapshot del estado en el momento de ocultar
@@ -1122,6 +1216,18 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Programmatic close: from close button or Esc
+document.addEventListener('ui:close-panel', () => {
+    if (!infoPanel) return;
+    isLocked = false;
+    lockedIdx = null;
+    hoverIdx = null;
+    quitarResaltado();
+});
+
+// Expose lock state for tooling or optional external checks
+try { window.isLocked = isLocked; } catch {}
+
 // Mantener abierto mientras el puntero esté sobre el panel
 if (infoPanel) {
     infoPanel.addEventListener('pointerenter', () => {
@@ -1140,6 +1246,124 @@ if (infoPanel) {
             hoverIdx = null;
             quitarResaltado();
     }, HOVER_CLOSE_DELAY);
+    });
+}
+
+// ===== Paleta de colores del sprite =====
+// Cache simple en memoria por URL
+const __paletteCache = Object.create(null);
+
+function rgbToHex(r,g,b){
+    const h = (n) => n.toString(16).padStart(2,'0');
+    return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function rgbToHex8(r,g,b,a=255){
+    const h = (n) => n.toString(16).padStart(2,'0');
+    return `#${h(r)}${h(g)}${h(b)}${h(a)}`;
+}
+
+function renderPalette(colors){
+    if (!paletteSwatches) return;
+    paletteSwatches.innerHTML = '';
+    if (!colors || !colors.length) {
+        // Si no hay colores, dejar vacío (el contenedor mantiene título "Paleta")
+        return;
+    }
+    colors.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'swatch';
+        d.style.background = c.hex;
+        const hex8 = rgbToHex8(c.r, c.g, c.b, 255);
+        d.title = `${hex8}${c.percent != null ? ` • ${Math.round(c.percent)}%` : ''}\nClick para copiar`;
+        d.tabIndex = 0;
+        const copyHex = async () => {
+            try {
+                await navigator.clipboard.writeText(hex8);
+                // pequeña señal visual
+                d.style.outline = '2px solid #fff';
+                setTimeout(() => { d.style.outline = ''; }, 300);
+                window.SFX?.play('tapA', 0.25);
+            } catch {
+                // Fallback: input temporal
+                const inp = document.createElement('input');
+                inp.value = hex8;
+                document.body.appendChild(inp);
+                inp.select();
+                try { document.execCommand('copy'); } catch {}
+                inp.remove();
+            }
+        };
+        d.addEventListener('click', copyHex);
+        d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyHex(); } });
+        paletteSwatches.appendChild(d);
+    });
+}
+
+// Extrae los colores dominantes del sprite usando cuantización por histograma en 12 bits (4 bits por canal)
+function extractPaletteFromImage(img, maxColors = 16){
+    try{
+        const w0 = img.naturalWidth || img.width;
+        const h0 = img.naturalHeight || img.height;
+        // limitar tamaño de muestreo para rendimiento
+        const MAX_DIM = 256;
+        let w = w0, h = h0;
+        let scale = 1;
+        if (Math.max(w0, h0) > MAX_DIM) {
+            scale = MAX_DIM / Math.max(w0, h0);
+            w = Math.max(1, Math.round(w0 * scale));
+            h = Math.max(1, Math.round(h0 * scale));
+        }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        // importante para sprites pixel: desactivar suavizado al re-escalar
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        const hist = new Map();
+        let total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            const a = data[i+3];
+            if (a < 16) continue; // ignorar casi transparentes
+            const r = data[i], g = data[i+1], b = data[i+2];
+            // cuantizar a 4 bits por canal
+            const rq = r >> 4, gq = g >> 4, bq = b >> 4;
+            const key = (rq << 8) | (gq << 4) | bq;
+            hist.set(key, (hist.get(key) || 0) + 1);
+            total++;
+        }
+        // ordenar por frecuencia descendente
+        const entries = Array.from(hist.entries()).sort((a,b) => b[1] - a[1]);
+        const top = entries.slice(0, maxColors).map(([key, count]) => {
+            const rq = (key >> 8) & 0xF;
+            const gq = (key >> 4) & 0xF;
+            const bq = key & 0xF;
+            // convertir a 8 bits al centro del bucket
+            const r8 = (rq << 4) | 0x8;
+            const g8 = (gq << 4) | 0x8;
+            const b8 = (bq << 4) | 0x8;
+            return { r:r8, g:g8, b:b8, hex: rgbToHex(r8,g8,b8), count, percent: total ? (count/total*100) : 0 };
+        });
+        return top;
+    } catch {
+        return [];
+    }
+}
+
+function computeAndRenderPalette(loadedImg, reqId){
+    if (!loadedImg || !loadedImg.src) { renderPalette([]); return; }
+    const key = loadedImg.src;
+    if (__paletteCache[key]) { renderPalette(__paletteCache[key]); return; }
+    // Ejecutar extracción en un frame separado para no bloquear transición
+    requestAnimationFrame(() => {
+        // Evitar trabajo si ya se cambió la solicitud del preview
+        if (reqId != null && segmentPreview && segmentPreview._reqId !== reqId) return;
+        const colors = extractPaletteFromImage(loadedImg, 16);
+        __paletteCache[key] = colors;
+        // Verificar nuevamente que la solicitud sigue vigente antes de renderizar
+        if (reqId != null && segmentPreview && segmentPreview._reqId !== reqId) return;
+        renderPalette(colors);
     });
 }
 

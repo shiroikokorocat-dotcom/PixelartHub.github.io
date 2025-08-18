@@ -4,7 +4,7 @@
 Optimiza las imágenes de PFP del proyecto:
 - Reescala (reduce o aumenta) a un tamaño objetivo manteniendo proporción.
 - Convierte a formato WebP para reducir peso (con calidad configurable).
-- Actualiza segmentos/segmentos.json con las nuevas rutas (pfp_web/*.webp).
+- Actualiza assets/segmentos/segmentos.json con las nuevas rutas (assets/pfp_web/*.webp).
 
 Uso rápido (por defecto 256px lado mayor, calidad 82):
   python tools/pfp_optimizer.py
@@ -31,10 +31,26 @@ except Exception:
 
 # Rutas basadas en la ubicación de este archivo (tools/)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-SEG_DIR = os.path.join(ROOT, 'segmentos')
+# Canonical assets layout
+SEG_DIR = os.path.join(ROOT, 'assets', 'segmentos')
 JSON_PATH = os.path.join(SEG_DIR, 'segmentos.json')
-PFP_DIR = os.path.join(ROOT, 'pfp')
-PFP_OUT_DIR = os.path.join(ROOT, 'pfp_web')
+PFP_DIR = os.path.join(ROOT, 'assets', 'pfp')
+PFP_OUT_DIR = os.path.join(ROOT, 'assets', 'pfp_web')
+
+# Fallbacks to legacy layout if assets/ doesn't exist yet
+if not os.path.exists(JSON_PATH):
+    legacy_json = os.path.join(ROOT, 'segmentos', 'segmentos.json')
+    if os.path.exists(legacy_json):
+        JSON_PATH = legacy_json
+        SEG_DIR = os.path.join(ROOT, 'segmentos')
+if not os.path.isdir(PFP_DIR):
+    legacy_pfp = os.path.join(ROOT, 'pfp')
+    if os.path.isdir(legacy_pfp):
+        PFP_DIR = legacy_pfp
+if not os.path.isdir(PFP_OUT_DIR):
+    legacy_pfp_web = os.path.join(ROOT, 'pfp_web')
+    if os.path.isdir(legacy_pfp_web):
+        PFP_OUT_DIR = legacy_pfp_web
 
 SUPPORTED_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff'}
 
@@ -166,7 +182,7 @@ def main():
 
     print(f"[cfg] max_side={args.max_side} quality={args.quality} lossless={args.lossless} overwrite={args.overwrite} only_json={args.only_json} dry_run={args.dry_run}")
 
-    # Recolectar archivos fuente en pfp/
+    # Recolectar archivos fuente en assets/pfp/ (o legacy pfp/)
     src_files = iter_pfp_files()
     if not src_files:
         print(f"[warn] No se encontraron imágenes en: {PFP_DIR}")
@@ -197,7 +213,7 @@ def main():
     changed = 0
     checked = 0
 
-    # Construye también mapping a partir del json (por si el perfil no apunta a pfp/ pero existe archivo homónimo)
+    # Construye también mapping a partir del json (por si el perfil no apunta a assets/pfp/ pero existe archivo homónimo)
     for seg in data:
         old = seg.get('perfil')
         if not field_ok(old):
@@ -208,13 +224,20 @@ def main():
         # Caso 1: Tenemos mapping directo de procesamiento
         rel_new = mapping.get(rel_old)
 
-        # Caso 2: Si no, intentar inferir destino si es un PFP dentro de pfp/
+        # Caso 2: Si no, intentar inferir destino si es un PFP dentro de assets/pfp/ (o legacy pfp/)
         if not rel_new:
             base = os.path.splitext(os.path.basename(rel_old))[0]
-            inferred_dst = f"pfp_web/{base}.webp"
-            abs_inferred = os.path.join(ROOT, inferred_dst)
+            # Prefer assets/pfp_web
+            inferred_dst = f"assets/pfp_web/{base}.webp"
+            abs_inferred = os.path.join(ROOT, inferred_dst.replace('/', os.sep))
             if os.path.exists(abs_inferred):
                 rel_new = inferred_dst
+            else:
+                # Legacy fallback
+                legacy_dst = f"pfp_web/{base}.webp"
+                abs_legacy = os.path.join(ROOT, legacy_dst)
+                if os.path.exists(abs_legacy):
+                    rel_new = legacy_dst
 
         if rel_new and rel_new != rel_old:
             print(f"[json] perfil: {rel_old} -> {rel_new}")

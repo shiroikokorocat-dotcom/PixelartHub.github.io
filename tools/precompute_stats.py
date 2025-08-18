@@ -2,13 +2,21 @@ import json
 import os
 from PIL import Image
 
-# This script reads segmentos/segmentos.json, computes per-sprite stats once,
+# This script reads assets/segmentos/segmentos.json, computes per-sprite stats once,
 # writes them into the JSON under a `stats` key, and saves the file.
 # Stats: w, h, r, g, b (sum of channel values over all pixels), opaque (alpha>0 count)
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
-SEG_JSON = os.path.join(ROOT, 'segmentos', 'segmentos.json')
-SEG_DIR = os.path.join(ROOT, 'segmentos')
+# New canonical locations
+SEG_JSON = os.path.join(ROOT, 'assets', 'segmentos', 'segmentos.json')
+SEG_DIR = os.path.join(ROOT, 'assets', 'segmentos')
+
+# Fallback to legacy layout if needed
+if not os.path.exists(SEG_JSON):
+    legacy = os.path.join(ROOT, 'segmentos', 'segmentos.json')
+    if os.path.exists(legacy):
+        SEG_JSON = legacy
+        SEG_DIR = os.path.join(ROOT, 'segmentos')
 
 
 def compute_stats(img_path):
@@ -44,16 +52,23 @@ def main():
         if s and all(k in s for k in ('w','h','r','g','b','opaque')):
             continue
         img_rel = seg.get('imagen') or ''
-        img_rel = img_rel.replace('\\', '/').split('/')[-1]
-        img_path = os.path.join(SEG_DIR, img_rel)
+        # Prefer the filename inside assets/segmentos
+        img_rel_norm = img_rel.replace('\\', '/')
+        img_path = os.path.join(SEG_DIR, os.path.basename(img_rel_norm))
         if not os.path.exists(img_path):
-            # try prefixed path
-            img_path2 = os.path.join(SEG_DIR, seg.get('imagen','').replace('\\','/'))
+            # try prefixed path inside current SEG_DIR
+            img_path2 = os.path.join(SEG_DIR, img_rel_norm)
             if os.path.exists(img_path2):
                 img_path = img_path2
             else:
-                print(f"Skip: image not found for seg {seg.get('nombre','?')}: {img_rel}")
-                continue
+                # legacy folder layout as last resort
+                legacy_dir = os.path.join(ROOT, 'segmentos')
+                img_path3 = os.path.join(legacy_dir, os.path.basename(img_rel_norm))
+                if os.path.exists(img_path3):
+                    img_path = img_path3
+                else:
+                    print(f"Skip: image not found for seg {seg.get('nombre','?')}: {img_rel}")
+                    continue
         stats = compute_stats(img_path)
         if stats:
             seg['stats'] = stats
