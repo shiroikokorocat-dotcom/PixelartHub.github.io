@@ -7,7 +7,7 @@ import json
 import numpy as np
 
 IMG_PATH = r"Ilustracion72.png"  # Asegúrate que el nombre sea correcto y sin acentos
-OUTPUT_DIR = r"segmentos"
+OUTPUT_DIR = r"assets/segmentos"
 SCALE_FACTOR = 4
 
 # Variables globales para el área de trabajo

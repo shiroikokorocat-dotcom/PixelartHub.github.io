@@ -18,11 +18,16 @@
         <canvas id="pixelart-canvas"></canvas>
     </div>
     <div id="info-panel" class="hidden">
+    <button id="panel-close" class="panel-close" type="button" aria-label="Cerrar">✕</button>
         <div class="info-content">
             <div class="info-left">
                 <img id="segment-preview" alt="Vista previa" />
+                <div id="palette" class="palette">
+                    <div class="palette-title">Palette</div>
+                    <div id="color-palette" class="palette-swatches"></div>
+                </div>
             </div>
-            <div class="divider" aria-hidden="true"></div>
+            <div class="divider" aria-hidden="true"><span class="divider-rot" aria-hidden="true"></span></div>
             <div class="info-right">
                 <div class="header">
                     <h2 id="personaje-nombre"></h2>
@@ -30,6 +35,7 @@
                 <div class="profile">
                     <img id="pfp-image" alt="Perfil" />
                 </div>
+                <div class="divider-h" aria-hidden="true"></div>
                 <div id="stats" class="stats">
                     <div class="stats-title">Stats:</div>
                 </div>
@@ -40,6 +46,7 @@
                         <div class="social-row"><span class="site-label">KF</span><a id="link-kofi" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
                         <div class="social-row"><span class="site-label">YT</span><a id="link-youtube" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
                         <div class="social-row"><span class="site-label">TTV</span><a id="link-twitch" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
+                           <div class="social-row"><span class="site-label">BS</span><a id="link-bluesky" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
                         <div class="social-row"><span class="site-label">PF</span><a id="link-portfolio" class="social hidden" href="#" target="_blank" rel="noopener"></a></div>
                     </div>
                     <div id="preview-controls" class="dev-controls">
@@ -61,7 +68,90 @@
         </div>
     </div>
     <script src="app.js"></script>
-    <script>
+        <script>
+        // Simple SFX manager using assets/ui/Sounds (with autoplay priming)
+        (function(){
+            const enabled = true;
+            const VOLUME_MULT = 0.8; // reduce all volumes by 20%
+            const sounds = {
+                clickA: 'assets/ui/Sounds/click-a.ogg',
+                clickB: 'assets/ui/Sounds/click-b.ogg',
+                switchA: 'assets/ui/Sounds/switch-a.ogg',
+                switchB: 'assets/ui/Sounds/switch-b.ogg',
+                tapA: 'assets/ui/Sounds/tap-a.ogg',
+                tapB: 'assets/ui/Sounds/tap-b.ogg'
+            };
+            const pool = new Map();
+            let primed = false;
+
+            async function primeOnce() {
+                if (primed) return; // avoid re-priming
+                primed = true;
+                // Create at least one muted element per source and attempt muted autoplay
+                const entries = Object.values(sounds);
+                await Promise.all(entries.map(async (src) => {
+                    try {
+                        let list = pool.get(src);
+                        if (!list) { list = []; pool.set(src, list); }
+                        const a = new Audio(src);
+                        a.preload = 'auto';
+                        a.muted = true; // muted autoplay is allowed in most browsers
+                        a.volume = 0;
+                        a.loop = false;
+                        a.playsInline = true;
+                        // Attempt to play briefly, then pause and unmute for later use
+                        await a.play().catch(() => {});
+                        setTimeout(() => { try { a.pause(); a.currentTime = 0; a.muted = false; } catch {} }, 150);
+                        list.push(a);
+                    } catch {}
+                }));
+            }
+
+            function ensureListFor(src) {
+                let list = pool.get(src);
+                if (!list) { list = []; pool.set(src, list); }
+                return list;
+            }
+
+            function play(key, volume=0.35) {
+                if (!enabled) return;
+                const src = sounds[key];
+                if (!src) return;
+                const list = ensureListFor(src);
+                let a = list.find(x => x.paused);
+                if (!a) {
+                    a = new Audio(src);
+                    a.preload = 'auto';
+                    a.playsInline = true;
+                    list.push(a);
+                }
+                const v = Math.max(0, Math.min(1, volume * VOLUME_MULT));
+                try {
+                    a.currentTime = 0;
+                    a.volume = v;
+                    const p = a.play();
+                    if (p && typeof p.then === 'function') {
+                        p.catch(() => {
+                            // If blocked, try priming again (idempotent)
+                            primed = false;
+                            primeOnce();
+                        });
+                    }
+                } catch {
+                    primed = false;
+                    primeOnce();
+                }
+            }
+
+            // Try to prime as early as possible
+            try { primeOnce(); } catch {}
+            // Retry on visibility or first pointer move (no click required)
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') primeOnce(); });
+            const onFirstPointerMove = () => { primeOnce(); document.removeEventListener('pointermove', onFirstPointerMove); };
+            document.addEventListener('pointermove', onFirstPointerMove, { once: true });
+
+            window.SFX = { play, forcePrime: primeOnce };
+        })();
     // PFP volador: al clickear la imagen de PFP del panel, lanza esa misma PFP en parábola L→R o R→L
     (function() {
         function currentPfpSrc() {
@@ -82,14 +172,26 @@
                 if (Number.isInteger(window.currentIdx) && segs[window.currentIdx]) {
                     const v = segs[window.currentIdx].perfil;
                     if (v && v !== '-' && String(v).trim()) {
-                        return String(v).replace(/\\\\/g,'/').replace(/^\/*/,'');
+                        let p = String(v).replace(/\\\\/g,'/').replace(/^\/*/,'');
+                        if (!/^https?:\/\//i.test(p) && !p.startsWith('assets/')) {
+                            if (p.startsWith('pfp_web/')) p = 'assets/' + p;
+                            else if (p.startsWith('pfp/')) p = 'assets/' + p;
+                            else p = 'assets/pfp_web/' + p.split('/').pop();
+                        }
+                        return p;
                     }
                 }
                 // Fallback: cualquiera con PFP
                 const candidates = segs.map(s => (s && s.perfil) ? String(s.perfil).replace(/\\\\/g,'/').replace(/^\/*/,'') : null)
                     .filter(v => v && v !== '-' && !/\s*$/.test(v));
                 if (candidates.length === 0) return null;
-                return candidates[Math.floor(Math.random() * candidates.length)];
+                let pick = candidates[Math.floor(Math.random() * candidates.length)];
+                if (!/^https?:\/\//i.test(pick) && !pick.startsWith('assets/')) {
+                    if (pick.startsWith('pfp_web/')) pick = 'assets/' + pick;
+                    else if (pick.startsWith('pfp/')) pick = 'assets/' + pick;
+                    else pick = 'assets/pfp_web/' + pick.split('/').pop();
+                }
+                return pick;
             } catch { return null; }
         }
         function launchFlyer(fromLeft = Math.random() < 0.5) {
@@ -160,6 +262,7 @@
             if (!pfp) return;
             pfp.addEventListener('click', () => {
                 // alternar dirección aleatoriamente
+                window.SFX?.play('tapA', 0.35);
                 launchFlyer(Math.random() < 0.5);
             });
         }
@@ -169,6 +272,34 @@
                 if (ready()) { clearInterval(id); bindTrigger(); }
             }, 300);
         }
+    })();
+    // Close button + Esc support
+    (function(){
+        const btn = document.getElementById('panel-close');
+        function closePanel(){
+            // mimic clicking outside: unlock and hide (same path)
+            document.dispatchEvent(new CustomEvent('ui:close-panel'));
+        }
+        if (btn) btn.addEventListener('click', closePanel);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePanel();
+        });
+    })();
+    // Debug overlay for info panel divisions: enable with ?debug=1 or toggle via Ctrl/Alt + D
+    (function(){
+        const info = document.getElementById('info-panel');
+        if (!info) return;
+        const params = new URLSearchParams(window.location.search);
+        const initial = params.get('debug');
+        if (initial === '1' || initial === 'true') {
+            info.classList.add('debug');
+        }
+        document.addEventListener('keydown', (e) => {
+            if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.altKey)) {
+                info.classList.toggle('debug');
+                e.preventDefault();
+            }
+        });
     })();
     </script>
 </body>

@@ -4,7 +4,7 @@
 Herramienta de formulario para editar personajes del proyecto Visualizador.
 
 Funciones principales:
-- Carga segmentos/segmentos.json.
+- Carga assets/segmentos/segmentos.json.
 - Muestra un menú principal (lista) con el estado de cada personaje y qué campos faltan (iconos ✓ / •).
 - Permite editar un personaje a la vez: nombre y redes (X, Discord, VGen, Ko‑fi, YouTube).
 - Muestra el sprite segmentado.
@@ -15,9 +15,9 @@ Requisitos:
 - Pillow (PIL) para manejar imágenes. Si no está instalado: pip install pillow
 
 Rutas relativas a este archivo:
-- JSON:   ../segmentos/segmentos.json
-- Sprites: ../segmentos/
-- PFP out: ../pfp/
+- JSON:   ../assets/segmentos/segmentos.json
+- Sprites: ../assets/segmentos/
+- PFP out: ../assets/pfp/
 """
 
 from __future__ import annotations
@@ -45,9 +45,21 @@ def project_root() -> str:
 
 
 ROOT = project_root()
-SEG_DIR = os.path.join(ROOT, 'segmentos')
+# Canonical assets layout
+SEG_DIR = os.path.join(ROOT, 'assets', 'segmentos')
 JSON_PATH = os.path.join(SEG_DIR, 'segmentos.json')
-PFP_DIR = os.path.join(ROOT, 'pfp')
+PFP_DIR = os.path.join(ROOT, 'assets', 'pfp')
+
+# Fallbacks to legacy layout if assets/ doesn't exist yet
+if not os.path.exists(JSON_PATH):
+    legacy_json = os.path.join(ROOT, 'segmentos', 'segmentos.json')
+    if os.path.exists(legacy_json):
+        JSON_PATH = legacy_json
+        SEG_DIR = os.path.join(ROOT, 'segmentos')
+if not os.path.isdir(PFP_DIR):
+    legacy_pfp = os.path.join(ROOT, 'pfp')
+    if os.path.isdir(legacy_pfp):
+        PFP_DIR = legacy_pfp
 
 os.makedirs(PFP_DIR, exist_ok=True)
 
