@@ -31,17 +31,19 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Kenney Future', Arial, sans-serif;
     color: #fff;
     text-align: center;
     background: none;
+    overflow-y: scroll; /* barra lateral siempre activa */
+    overflow-x: hidden; /* evita desbordes horizontales accidentales */
 }
 h1 {
     margin: 8px 0 6px 0; /* reduce espacio vertical del título */
     font-size: clamp(26px, 4.5vw, 56px);
     line-height: 1.1;
     font-weight: 700;
-    font-family: 'Silkscreen', system-ui, Arial, sans-serif; /* aplicar Silkscreen solo al título */
+    font-family: 'Kenney Future Narrow', 'Kenney Future', system-ui, Arial, sans-serif; /* usar Kenney para título */
     position: relative;
     z-index: 2; /* por encima del canvas y el grid */
     /* contorno para legibilidad sobre el fondo */
@@ -57,7 +59,7 @@ h1 {
         0 0 10px rgba(0,0,0,0.5);
 }
 #info-panel .header h2 {
-    font-family: 'Press Start 2P', system-ui, Arial, sans-serif; /* fuente pixelada para subtítulo */
+    font-family: 'Kenney Future', system-ui, Arial, sans-serif; /* fuente Kenney para subtítulo */
     letter-spacing: 0.5px;
 }
 #canvas-container {
@@ -65,6 +67,8 @@ h1 {
     position: relative;
     z-index: 1; /* por encima de las nubes (canvas fixed con z-index:0) */
     margin-top: 8px; /* baja un poco la grid debajo del título */
+    max-width: 100vw; /* no exceder el viewport */
+    overflow: hidden; /* recorte de desbordes accidentales */
 }
 #pixelart-canvas {
     border: 2px solid #555;
@@ -181,8 +185,9 @@ h1 {
     75%  { filter: hue-rotate(270deg) saturate(1.25) brightness(1.04) drop-shadow(0 0 2px rgba(255,255,255,0.25)); }
     100% { filter: hue-rotate(360deg) saturate(1.1)  brightness(1.0) drop-shadow(0 0 0 rgba(255,255,255,0.15)); }
 }
+/* Overlay absoluto para no afectar el grid */
 #info-panel {
-    position: fixed;
+    position: absolute;
     left: 50%;
     bottom: 0;
     transform: translateX(-50%);
@@ -193,6 +198,8 @@ h1 {
     --name-max-px: 64;   /* tamaño máximo en px */
     --name-initial-px: 40; /* tamaño inicial al mostrar */
     --name-two-line-threshold-px: 40; /* si el tamaño cae por debajo, usar 2 líneas */
+    /* Fracción de la columna izquierda en móvil (ajustable por JS si se desea) */
+    --left-col-frac: 44%;
     background: transparent; /* textura de fondo en ::before */
     padding: 20px 30px 30px 30px;
     border-radius:20px;
@@ -205,6 +212,7 @@ h1 {
     text-align: left;
     position: fixed;
     overflow: hidden; /* recorta la textura al panel */
+    box-sizing: border-box; /* que el ancho incluya padding y borde para no desbordar */
     /* transiciones ultra rápidas (50ms) para cambios veloces de personaje */
     transition: bottom 50ms ease-out, opacity 50ms ease-out;
     will-change: bottom, opacity;
@@ -256,6 +264,8 @@ h1 {
     row-gap: 12px;
     column-gap: 6px; /* margen lateral más estrecho para el divisor */
     max-width: 100%;
+    width: 100%; /* ocupar todo el ancho disponible del panel */
+    overflow-x: hidden; /* evitar desbordes horizontales internos */
 }
 #panel-close.panel-close {
     position: absolute;
@@ -267,7 +277,7 @@ h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Kenney Future', 'Silkscreen', system-ui, sans-serif;
+    font-family: 'Kenney Future', system-ui, sans-serif;
     font-size: 0; /* ocultar el glifo '✕' y usar icono */
     line-height: 1;
     color: transparent;
@@ -290,13 +300,28 @@ h1 {
     justify-content: flex-start; /* y a la izquierda */
     padding: 1px; /* espacio extra alrededor del personaje */
     flex-direction: column;
+     /* Importante para que la columna pueda contraerse en pantallas estrechas
+         y no empuje/solape el divisor vertical */
+     min-width: 0;
+     max-width: 100%;
+    box-sizing: border-box;
+    /* Evita desbordes horizontales hacia el divisor pero permite que sombras verticales se vean */
+    overflow-x: hidden;
+    overflow-y: visible;
 }
 
 /* Paleta de colores bajo el sprite */
-.palette { width: 85%; margin-top: 2px; background: rgba(0,0,0,0.12); border: 1px solid #3a3a3a; box-shadow: inset 0 0 0 1px #00000055; padding: 4px 6px; }
+.palette { width: 85%; margin-top: 2px; background: rgba(0,0,0,0.12); border: 1px solid #3a3a3a; box-shadow: inset 0 0 0 1px #00000055; padding: 4px 6px; box-sizing: border-box; overflow: hidden; position: relative; }
 .palette-title { font-size: 8px; text-transform: uppercase; opacity: 0.9; margin-bottom: 4px; letter-spacing: 0.5px; }
-.palette-swatches { display: grid; grid-template-columns: repeat(4, 14px); gap: 4px; }
-.swatch { width: 13px; height: 13px; border: 1px solid #222; box-shadow: inset 0 0 0 1px #00000055; image-rendering: pixelated; }
+.palette-swatches { display: grid; grid-template-columns: repeat(auto-fill, 14px); gap: 4px; width: 100%; max-width: 100%; overflow: hidden; justify-content: start; align-content: start; }
+.swatch {
+    width: 14px; /* igual al track de la grid */
+    height: 14px;
+    box-sizing: border-box; /* incluye el borde dentro del tamaño declarado */
+    border: 1px solid #222;
+    box-shadow: inset 0 0 0 1px #00000055;
+    image-rendering: pixelated;
+}
 
 #segment-preview {
     width: auto;                 /* conservar proporción */
@@ -307,6 +332,7 @@ h1 {
     background: rgba(0, 0, 0, 0.5); /* fondo medianamente transparente */
     border: 4px solid #333;
     margin: 8px 0; /* espaciado compacto */
+    box-sizing: border-box; /* evita que el borde haga overflow de la columna */
 }
 /* estado de carga similar al PFP */
 #segment-preview.preview-loading {
@@ -324,6 +350,7 @@ h1 {
     box-shadow: inset 0 0 0 1px #00000066; /* realce interno sutil */
     background: rgba(0,0,0,0.15);
     padding: 3px 4px;   /* aún más compacto */
+    box-sizing: border-box; /* evita que el borde/padding ensanche más de la columna */
 }
 .stats-title {
     font-size: 8px;     /* título ligeramente más pequeño */
@@ -370,10 +397,10 @@ h1 {
 #info-panel .divider .divider-rot {
     position: absolute;
     /* expandir ampliamente para cubrir tras rotación y evitar cortes */
-    top: -100%;
-    bottom: -100%;
-    left: -226px;
-    right: -226px;
+    top: -1000%;
+    bottom: -1000%;
+    left: -2260px;
+    right: -2260px;
     display: block;
     background: url('assets/ui/PNG/Madera/Default/divider.png') center center repeat-x;
     background-size: auto 100%;
@@ -437,6 +464,8 @@ h1 {
     grid-auto-rows: min-content; /* filas con alto mínimo requerido */
     max-width: 100%;
     overflow: hidden; /* evita desbordes hacia la derecha */
+    justify-self: stretch; /* ocupar todo el ancho de su columna */
+    width: 100%;
 }
 /* Horizontal divider sits in its own named row spanning both columns */
 #info-panel .info-right .divider-h { grid-area: dividerH; margin: 4px 0; }
@@ -476,7 +505,7 @@ h1 {
 #social-links .social {
     color:#000;
     text-decoration: underline;
-    font-family: 'Fool', 'Pixelify Sans', system-ui, Arial, sans-serif;
+    font-family: 'Fool', 'Kenney Future', system-ui, Arial, sans-serif;
     font-size: 0.95em;
     display: inline-block;
     max-width: 100%;
@@ -538,6 +567,8 @@ img {
         0 0 0 5px #0002 inset; /* sombra interna más suave */
     border-radius: 8px;
     margin-bottom: 10px;
+    max-width: 100%;
+    height: auto;
 }
 .highlight {
     box-shadow: 0 0 0 4px #ff0, 0 0 10px #ff0;
@@ -624,17 +655,231 @@ img {
 #info-panel.debug #stats::before               { content: 'stats'; }
 #info-panel.debug .meta::before                { content: 'socials/meta'; }
 
+/* Debug global: resaltar secciones principales en la pantalla */
+body.debug h1 { outline: 2px dashed rgba(0,255,255,0.6); outline-offset: 2px; }
+body.debug #canvas-container { outline: 2px dashed rgba(255,0,255,0.6); outline-offset: 2px; position: relative; }
+body.debug #nubes-canvas { outline: 2px dashed rgba(0,255,0,0.6); outline-offset: 2px; }
+body.debug #fondo-mosaico { outline: 2px dashed rgba(255,165,0,0.6); outline-offset: 2px; }
+body.debug #info-panel { outline: 2px dashed rgba(255,255,0,0.6); outline-offset: 2px; }
+
 /* ====== Placeholder de redes sociales ====== */
 #social-links .social-placeholder {
     margin-top: 2px;
     color: #000;
-    font-family: 'Fool', 'Pixelify Sans', system-ui, Arial, sans-serif;
+    font-family: 'Fool', 'Kenney Future', system-ui, Arial, sans-serif;
     font-size: 12px;
     opacity: 0.9;
     padding: 4px 8px;
     display: inline-block;
-    border: 8px solid transparent;
-    -webkit-border-image: url('assets/ui/PNG/Madera/Default/input_outline_rectangle.png') 8 fill round;
-    border-image: url('assets/ui/PNG/Madera/Default/input_outline_rectangle.png') 8 fill round;
+    border: 2px solid rgba(255,255,255,0.5);
+    box-shadow:
+        0 0 0 2px rgba(6,26,49,0.95) inset,
+        0 0 0 6px rgba(255,255,255,0.08) inset;
     image-rendering: pixelated;
+    background: rgba(229, 219, 212, 0.8); /* igual que el fondo de .social */
+}
+
+/* =====================
+   Pantalla de carga
+   ===================== */
+#loading-screen {
+    position: fixed;
+    inset: 0;
+    background: #0a2342; /* azul marino */
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000; /* por encima del panel */
+    opacity: 1;
+    transition: opacity 220ms ease-out, visibility 220ms ease-out;
+}
+#loading-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+#loading-screen.locked { pointer-events: auto; }
+#loading-screen .loader-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+    user-select: none;
+}
+/* Barra de progreso: rectángulo con borde y un espacio interno de 3px */
+#loading-screen .progress {
+    width: min(86vw, 860px);
+    padding: 6px;
+    /* Borde CSS usando tonos del fondo (sin recursos UI) */
+    border: 2px solid rgba(255,255,255,0.35);
+    box-shadow:
+        0 0 0 2px rgba(6,26,49,0.95) inset,   /* borde interno oscuro */
+        0 0 0 6px rgba(255,255,255,0.08) inset, /* segunda línea clara */
+        0 2px 0 rgba(0,0,0,0.35);            /* leve drop para relieve */
+    background: rgba(0,0,0,0.2);
+}
+#loading-screen .progress-track {
+    position: relative;
+    height: 16px;
+    background: #000; /* carril negro */
+    box-shadow: 0 0 0 3px #0a2342 inset; /* espacio interno de 3px en contraste con el fondo */
+    overflow: hidden;
+}
+#loading-screen .progress-line {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    bottom: 3px;
+    width: 0%;
+    background: #fff; /* línea blanca */
+    box-shadow: 0 0 0 1px #ccc inset;
+}
+#loading-screen .loader-text { font-family: 'Kenney Future Narrow', 'Kenney Future', system-ui, Arial, sans-serif; font-size: 16px; }
+#loading-screen .loader-sub  { font-family: 'Fool', 'Kenney Future', system-ui, Arial, sans-serif; font-size: 12px; opacity: 0.9; }
+/* Dots animados tipo "saltitos" */
+#loader-text .dot { display: inline-block; animation: dot-bounce 1.2s infinite; transform-origin: bottom center; }
+#loader-text .dot:nth-child(1) { animation-delay: 0s; }
+#loader-text .dot:nth-child(2) { animation-delay: 0.15s; }
+#loader-text .dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dot-bounce {
+    0%, 20%, 100% { transform: translateY(0); }
+    10% { transform: translateY(-3px); }
+}
+/* Botón Start con estilo pixel art */
+#loading-screen .loader-cta {
+    margin-top: 6px;
+    padding: 6px 14px;
+    font-family: 'Kenney Future', 'Kenney Future Narrow', system-ui, Arial, sans-serif;
+    font-size: 16px;
+    color: #000;
+    background: #f1f1f1; /* relleno claro; se mantiene, solo bordes sin recursos UI */
+    border: 2px solid rgb(226, 226, 226);
+    /* Marco pixelado con sombras en capas usando tonos del loader */
+    box-shadow:
+        0 0 0 2px rgba(7,29,56,0.95) inset,  /* línea oscura interna */
+        0 0 0 6px rgba(255,255,255,0.08) inset, /* línea clara adicional */
+        0 2px 0 rgba(0,0,0,0.5);            /* sombra inferior para relieve */
+    cursor: pointer;
+    filter: drop-shadow(1px 3px 0 rgba(0, 0, 0, 0.533));
+}
+#loading-screen .loader-cta:hover { filter: brightness(1.08) drop-shadow(0 2px 0 #0008); }
+#loading-screen .loader-cta:active { filter: brightness(0.92) drop-shadow(0 1px 0 #0008); }
+#loading-screen .loader-logo {
+    position: relative;
+    width: min(86vw, 860px);
+    height: 128px; /* área para varias filas */
+    overflow: hidden;
+    image-rendering: pixelated;
+    /* Borde CSS-only, tonos del fondo */
+    border: 2px solid rgba(255,255,255,0.35);
+    box-shadow:
+        0 0 0 2px rgba(6,26,49,0.95) inset,
+        0 0 0 6px rgba(255,255,255,0.08) inset,
+        0 2px 0 rgba(0,0,0,0.35);
+    background: rgba(255,255,255,0.04);
+    /* Variables para controlar el sangrado lateral (para que la desaparición ocurra fuera del recuadro) y el gap entre repeticiones */
+    --edge-bleed: 48px;
+    --gap: 48px;
+}
+#loading-screen .word-lane {
+    position: absolute;
+    left: calc(-1 * var(--edge-bleed, 48px));
+    right: calc(-1 * var(--edge-bleed, 48px));
+    height: 26px;
+    line-height: 26px;
+    font-family: 'Fool', 'Kenney Future', system-ui, Arial, sans-serif;
+    font-size: 18px;
+    color: #fff;
+    opacity: 0.9;
+    white-space: nowrap;
+}
+#loading-screen .word-lane .scroll {
+    display: inline-block; /* se ajusta al ancho del contenido duplicado */
+    will-change: transform;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-duration: var(--dur, 12s);
+    font-size: 0; /* elimina espacios entre los spans duplicados */
+}
+#loading-screen .word-lane.ltr .scroll { animation-name: marquee-left; }
+#loading-screen .word-lane.rtl .scroll { animation-name: marquee-right; }
+#loading-screen .word-lane .content { display: inline-block; padding-right: 0; font-size: 18px; }
+
+/* sutil variación por fila */
+#loading-screen .word-lane:nth-child(1) { opacity: 0.95; }
+#loading-screen .word-lane:nth-child(2) { opacity: 0.85; }
+#loading-screen .word-lane:nth-child(3) { opacity: 0.90; }
+#loading-screen .word-lane:nth-child(4) { opacity: 0.8; }
+
+@keyframes marquee-left {
+    0%   { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(calc(-1 * var(--pxDist, 600px)), 0, 0); }
+}
+@keyframes marquee-right {
+    0%   { transform: translate3d(calc(-1 * var(--pxDist, 600px)), 0, 0); }
+    100% { transform: translate3d(0, 0, 0); }
+}
+/* Marco para el texto de carga con el mismo box model que el botón Start */
+.loader-text-frame {
+    margin-top: 6px;
+    padding: 6px 14px;
+    font-family: 'Silkscreen', system-ui, Arial, sans-serif;
+    font-size: 16px;
+    color: #000;
+    background: #f1f1f1;
+    border: 2px solid rgb(226, 226, 226);
+    box-shadow:
+        0 0 0 2px rgba(7,29,56,0.95) inset,
+        0 0 0 6px rgba(255,255,255,0.08) inset,
+        0 2px 0 rgba(0,0,0,0.5);
+    /* Igual altura que el botón; no clickable */
+    cursor: default;
+    user-select: none;
+    min-width: 96px; /* asegura un ancho mínimo comparable a "Start" */
+}
+/* Tipografías del texto y subtítulo del loader */
+#loading-screen .loader-text { font-family: 'Kenney Future Narrow', 'Kenney Future', system-ui, Arial, sans-serif; font-size: 16px; }
+#loading-screen .loader-sub  { font-family: 'Fool', 'Kenney Future', system-ui, Arial, sans-serif; font-size: 12px; opacity: 0.9; }
+
+/* =====================
+   Ajustes móviles (pantallas altas)
+   Evita que .info-left empuje/solape el divisor
+   ===================== */
+@media (max-aspect-ratio: 5/6) {
+    /* Limitar la altura del panel al 40% de la pantalla en móvil */
+    #info-panel {
+        max-height: 40vh;
+    }
+    /* Hacer que el contenido interno sea scrollable dentro del límite */
+    #info-panel .info-content {
+        max-height: calc(40vh - 82px); /* 16(top border)+16(bottom border)+20(top padding)+30(bottom padding) */
+        overflow-y: auto;
+        width: 100%;
+        /* Izquierda crece gradualmente hasta 50% (el resto lo asume la derecha) */
+        grid-template-columns: minmax(0, clamp(36%, var(--left-col-frac, 44%), 50%)) 6px minmax(0, 1fr);
+    }
+    #info-panel .info-left,
+    #info-panel .info-right {
+        min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    }
+    /* Asegurar que los hijos no desborden la columna izquierda */
+    #segment-preview { max-width: 100%; height: auto; }
+    #palette { width: 100%; }
+    /* Paleta: ocupar todo el ancho en una sola fila, ajustando el tamaño automáticamente */
+    .palette-swatches {
+        display: grid;
+    grid-template-columns: repeat(var(--swatch-cols, var(--swatch-count, 1)), minmax(0, 1fr));
+        gap: 4px;
+        width: 100%;
+        overflow: hidden; /* sin scroll horizontal */
+    }
+    .swatch {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1; /* cuadrado, crece hasta llenar el ancho disponible */
+    }
 }

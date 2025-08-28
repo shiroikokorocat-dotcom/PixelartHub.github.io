@@ -3,14 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <title>Select a Character</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Favicon real -->
+    <link rel="icon" type="image/x-icon" href="assets/src/favicon.ico">
+    <link rel="shortcut icon" href="assets/src/favicon.ico">
 </head>
 <body>
+    <div id="loading-screen" role="dialog" aria-modal="true" aria-label="Cargando">
+        <div class="loader-wrap">
+            <div class="loader-logo" aria-hidden="true">
+                <!-- 5 carriles con direcciones alternadas -->
+        <div class="word-lane ltr"  style="top: 6px;">
+                    <div class="scroll">
+                        <span class="content">|- Hola, te doy las gracias por probar esta pagina experimental, 
+                            la hice ya que disponía de tiempo y quería aprovechar de exponer el arte que  
+                            hago de una forma cómoda y dar los créditos a las personas en la que me baso  
+                            para este pasa tiempo -
+                        </span>
+                    </div>
+                </div>
+        <div class="word-lane rtl"  style="top: 34px;">
+                    <div class="scroll">
+            <span class="content"> Loading pixel art • Preparing animations • Applying theme •
+                            Calculating color palettes • Loading statistics • Searching for links •
+                        </span>
+                    </div>
+                </div>
+        <div class="word-lane ltr"  style="top: 62px;">
+                    <div class="scroll">
+                        <span class="content">- Hello, thank you for trying out this experimental page. 
+                            I made it because I had some free time and wanted to take advantage of it to showcase the art I  
+                            create in a convenient way and give credit to the people who inspire me  
+                            in this hobby -
+                        </span>
+                    </div>
+                </div>
+        <div class="word-lane rtl"  style="top: 90px;">
+                    <div class="scroll">
+                        <span class="content"> Cargando el pixelart • Preparando animaciones • Aplicando tema •
+                            Calculando paletas de colores • Cargando estadisticas • Buscando enlaces •
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="progress" aria-label="Loading progress">
+                <div class="progress-track">
+                    <div class="progress-line" id="progress-line" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="loader-text-frame">
+                <div class="loader-text" id="loader-text" aria-live="polite" aria-atomic="true">
+                    Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+                </div>
+            </div>
+            <button id="loader-start" class="loader-cta hidden" type="button" aria-label="Start">
+                Start
+            </button>
+        </div>
+    </div>
     <div id="fondo-mosaico"></div>
     <canvas id="nubes-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;"></canvas>
     <h1>Select a<br>Character</h1>
@@ -69,6 +119,150 @@
     </div>
     <script src="app.js"></script>
         <script>
+        // Ajuste automático de velocidades del marquee según ancho de texto/área visible
+        (function(){
+            function restartAnimation(el){
+                // Reinicia la animación para aplicar nuevos tiempos sin saltos
+                const name = getComputedStyle(el).animationName;
+                el.style.animationName = 'none';
+                // forzar reflow
+                void el.offsetWidth;
+                el.style.animationName = name;
+            }
+            function setupLane(lane){
+                const scroll = lane.querySelector('.scroll');
+                if (!scroll) return;
+                const contents = scroll.querySelectorAll('.content');
+                // Asegurar duplicación: 2 copias para bucle continuo
+                if (contents.length === 1) {
+                    scroll.appendChild(contents[0].cloneNode(true));
+                }
+                // Forzar medición tras layout
+                const host = lane.closest('.loader-logo');
+                const hostWidth = host ? host.clientWidth : lane.clientWidth;
+                // Medir ancho de una copia
+                const first = scroll.querySelector('.content');
+                const copyWidth = first ? Math.ceil(first.getBoundingClientRect().width) : 0;
+                // Definir distancia en px a recorrer por ciclo (una copia completa)
+                const pxDist = Math.max(0, copyWidth);
+                scroll.style.setProperty('--pxDist', pxDist + 'px');
+                // Velocidad legible: píxeles por segundo
+                const pps = 20; // píxeles por segundo (velocidad lecturable objetivo)
+                // Duración de un ciclo: recorrer exactamente una copia
+                const durSec = Math.max(6, pxDist / pps); // mínimo 6s para estabilidad
+                scroll.style.animationDuration = durSec.toFixed(2) + 's';
+                restartAnimation(scroll);
+            }
+            async function setupAll(){
+                // Esperar a que carguen las fuentes para medir el ancho correcto
+                try {
+                    if (document.fonts && document.fonts.ready) {
+                        await document.fonts.ready;
+                    }
+                } catch {}
+                document.querySelectorAll('#loading-screen .word-lane').forEach(setupLane);
+                // Reajuste posterior por si hay pequeños cambios de layout
+                setTimeout(() => document.querySelectorAll('#loading-screen .word-lane').forEach(setupLane), 250);
+            }
+            // Ejecutar al cargar fuentes/DOM
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                requestAnimationFrame(setupAll);
+            } else {
+                document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(setupAll));
+            }
+            // Recalcular en resize para mantener la fluidez
+            window.addEventListener('resize', () => { requestAnimationFrame(setupAll); });
+        })();
+        // Pre-carga + barra de progreso con bloqueo hasta 100% (máx 5s) y botón Start
+        (function(){
+            const loadingEl = document.getElementById('loading-screen');
+            const progressLine = document.getElementById('progress-line');
+            const loaderText = document.getElementById('loader-text');
+            const startBtn = document.getElementById('loader-start');
+            let unlocked = false;
+
+            function setProgress(p){
+                const pct = Math.max(0, Math.min(100, Math.floor(p)));
+                if (progressLine) progressLine.style.width = pct + '%';
+            }
+            function unlock(){
+                if (unlocked) return;
+                unlocked = true;
+                // Cambiar texto a Start y mostrar botón
+                if (loaderText) loaderText.textContent = '';
+                const frame = document.querySelector('.loader-text-frame');
+                if (frame) frame.classList.add('hidden');
+                if (startBtn) startBtn.classList.remove('hidden');
+                // Habilitar click en Start para cerrar
+                startBtn?.addEventListener('click', () => {
+                    loadingEl?.classList.add('hidden');
+                }, { once: true });
+            }
+            // Helper: carga una lista de URLs en paralelo
+            function preloadImages(urls = []){
+                const uniq = Array.from(new Set(urls.filter(Boolean)));
+                return Promise.allSettled(uniq.map(u => new Promise((resolve) => {
+                    const im = new Image();
+                    im.decoding = 'async';
+                    im.referrerPolicy = 'no-referrer';
+                    im.onload = () => resolve({ ok:true, url:u });
+                    im.onerror = () => resolve({ ok:false, url:u });
+                    im.src = u;
+                })));
+            }
+            // Construir lista prioritaria: sprites de personajes desde segmentos.json
+            async function gatherCriticalAssets(){
+                const list = [];
+                try {
+                    const res = await fetch('assets/segmentos/segmentos.json', { cache: 'no-cache' });
+                    const segs = await res.json();
+                    // priorizar sprites (imagen)
+                    for (const s of segs) {
+                        if (!s) continue;
+                        let img = (s.imagen||'').toString().replace(/\\/g,'/');
+                        if (img && !/^https?:\/\//i.test(img)) {
+                            const f = img.split('/').pop();
+                            img = 'assets/segmentos/' + f;
+                        }
+                        if (img) list.push(img);
+                    }
+                    // opcional: pre-cargar divisores y UI importantes
+                    list.push(
+                        'assets/ui/PNG/Madera/Default/divider.png',
+                        'assets/ui/PNG/Madera/Default/divider_edges.png',
+                        'assets/ui/PNG/Madera/Default/button_rectangle_line.png',
+                        'assets/ui/PNG/Madera/Default/input_outline_rectangle.png',
+                        'assets/ui/PNG/Madera/Default/icon_cross.png',
+                        'assets/ui/PNG/Madera/Default/icon_outline_cross.png'
+                    );
+                } catch {}
+                return list;
+            }
+
+            async function startPreload(){
+                const assets = await gatherCriticalAssets();
+                // Lanzar precarga en segundo plano (no bloquea el desbloqueo por tiempo)
+                preloadImages(assets).catch(() => {});
+                // Barra de tiempo: 0 → 100% en máx 5s
+                const MAX_MS = 5000;
+                const t0 = performance.now();
+                let rafId = 0;
+                const tick = (now) => {
+                    const t = Math.min(1, (now - t0) / MAX_MS);
+                    setProgress(t * 100);
+                    if (t < 1) {
+                        rafId = requestAnimationFrame(tick);
+                    } else {
+                        cancelAnimationFrame(rafId);
+                        setProgress(100);
+                        unlock();
+                    }
+                };
+                rafId = requestAnimationFrame(tick);
+            }
+            // iniciar cuanto antes
+            startPreload();
+        })();
         // Simple SFX manager using assets/ui/Sounds (with autoplay priming)
         (function(){
             const enabled = true;
@@ -285,18 +479,21 @@
             if (e.key === 'Escape') closePanel();
         });
     })();
-    // Debug overlay for info panel divisions: enable with ?debug=1 or toggle via Ctrl/Alt + D
+    // Debug overlay for main screen and info panel: enable with ?debug=1 or toggle via Ctrl/Alt + D
     (function(){
         const info = document.getElementById('info-panel');
-        if (!info) return;
         const params = new URLSearchParams(window.location.search);
         const initial = params.get('debug');
-        if (initial === '1' || initial === 'true') {
-            info.classList.add('debug');
+        const enable = (initial === '1' || initial === 'true');
+        if (enable) {
+            document.body.classList.add('debug');
+            info?.classList.add('debug');
         }
         document.addEventListener('keydown', (e) => {
             if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.altKey)) {
-                info.classList.toggle('debug');
+                const on = !document.body.classList.contains('debug');
+                document.body.classList.toggle('debug', on);
+                if (info) info.classList.toggle('debug', on);
                 e.preventDefault();
             }
         });
