@@ -1,5 +1,174 @@
 // Nubes pixelart animadas en el fondo
 window.addEventListener('DOMContentLoaded', () => {
+    // Ajustes de layout para móviles (pantallas largas)
+    function ajustarInfoPanelMovil() {
+        if (!infoPanel) return;
+        const isMovil = isMovilAspect();
+        if (isMovil) {
+            // Layout principal: fila con dos columnas (izquierda y derecha)
+            if (infoPanel) {
+                infoPanel.style.display = 'flex';
+                infoPanel.style.flexDirection = 'row';
+                infoPanel.style.justifyContent = 'space-between';
+                infoPanel.style.alignItems = 'stretch';
+                infoPanel.style.gap = '16px';
+            }
+            // Sección izquierda: review, paleta, stats
+            const infoLeft = document.querySelector('.info-left');
+            if (infoLeft) {
+                infoLeft.style.display = 'flex';
+                infoLeft.style.flexDirection = 'column';
+                infoLeft.style.alignItems = 'stretch';
+                infoLeft.style.gap = '12px';
+                // Permitir contracción sin desbordar, dejando que el grid/flex calcule el ancho
+                infoLeft.style.flex = '1 1 0';
+                infoLeft.style.maxWidth = '';
+                infoLeft.style.minWidth = '0';
+                // Reubicar stats debajo de la paleta
+                if (statsEl && statsEl.parentElement !== infoLeft) {
+                    const after = paletteWrap && paletteWrap.parentElement === infoLeft ? paletteWrap.nextSibling : null;
+                    if (after) infoLeft.insertBefore(statsEl, after);
+                    else infoLeft.appendChild(statsEl);
+                }
+            }
+            if (segmentPreview) {
+                segmentPreview.style.width = '100%';
+                segmentPreview.style.maxWidth = '100%';
+                segmentPreview.style.height = 'auto';
+                segmentPreview.style.marginBottom = '8px';
+            }
+            if (paletteWrap) {
+                paletteWrap.style.width = '100%';
+                paletteWrap.style.maxWidth = '100%';
+                paletteWrap.style.marginBottom = '8px';
+            }
+            if (statsEl) {
+                statsEl.style.display = 'block';
+                statsEl.style.width = '100%';
+                statsEl.style.marginBottom = '0';
+            }
+            // Sección derecha: pfp, nombre, redes sociales
+            const infoRight = document.querySelector('.info-right');
+            if (infoRight) {
+                infoRight.style.display = 'flex';
+                infoRight.style.flexDirection = 'column';
+                infoRight.style.alignItems = 'flex-start';
+                infoRight.style.gap = '12px';
+                infoRight.style.flex = '2 1 0';
+            }
+            if (pfpImage) {
+                pfpImage.style.width = '128px';
+                pfpImage.style.height = '128px';
+                pfpImage.style.marginBottom = '8px';
+            }
+            if (nombreElem) {
+                nombreElem.style.fontSize = '2.2em';
+                nombreElem.style.marginTop = '0';
+                nombreElem.style.marginBottom = '8px';
+            }
+            const socialWrap = document.getElementById('social-links');
+            if (socialWrap) {
+                socialWrap.style.marginTop = '8px';
+                socialWrap.style.fontSize = '1.3em';
+                socialWrap.style.display = 'block';
+                socialWrap.style.textAlign = 'left';
+            }
+        } else {
+            // Restablecer estilos si no es móvil
+            if (infoPanel) {
+                infoPanel.style.display = '';
+                infoPanel.style.flexDirection = '';
+                infoPanel.style.justifyContent = '';
+                infoPanel.style.alignItems = '';
+                infoPanel.style.gap = '';
+            }
+            // Restaurar .info-right al grid por defecto (se pudo quedar en flex)
+            const infoRight = document.querySelector('.info-right');
+            if (infoRight) {
+                infoRight.style.display = '';
+                infoRight.style.flexDirection = '';
+                infoRight.style.alignItems = '';
+                infoRight.style.gap = '';
+                infoRight.style.flex = '';
+            }
+            // Restaurar .info-left a sus estilos por defecto
+            const infoLeft = document.querySelector('.info-left');
+            if (infoLeft) {
+                infoLeft.style.display = '';
+                infoLeft.style.flexDirection = '';
+                infoLeft.style.alignItems = '';
+                infoLeft.style.gap = '';
+                infoLeft.style.flex = '';
+            }
+            // Regresar stats a la columna derecha antes de la sección meta
+            const meta = infoRight ? infoRight.querySelector('.meta') : null;
+            if (statsEl && infoRight && statsEl.parentElement !== infoRight) {
+                if (meta) infoRight.insertBefore(statsEl, meta);
+                else infoRight.appendChild(statsEl);
+            }
+            if (pfpImage) {
+                pfpImage.style.width = '';
+                pfpImage.style.height = '';
+            }
+            if (nombreElem) {
+                nombreElem.style.fontSize = '';
+                nombreElem.style.marginTop = '';
+                nombreElem.style.marginBottom = '';
+            }
+            if (statsEl) {
+                // limpiar estilos inline para que el grid y el CSS tomen control
+                statsEl.style.display = '';
+                statsEl.style.width = '';
+                statsEl.style.marginBottom = '';
+            }
+            if (segmentPreview) {
+                segmentPreview.style.width = '';
+                segmentPreview.style.maxWidth = '';
+                segmentPreview.style.height = '';
+                segmentPreview.style.marginBottom = '';
+            }
+            if (paletteWrap) {
+                paletteWrap.style.display = '';
+                paletteWrap.style.flexDirection = '';
+                paletteWrap.style.alignItems = '';
+                paletteWrap.style.width = '';
+                paletteWrap.style.marginBottom = '';
+            }
+            const socialWrap = document.getElementById('social-links');
+            if (socialWrap) {
+                socialWrap.style.marginTop = '';
+                socialWrap.style.fontSize = '';
+                socialWrap.style.display = '';
+                socialWrap.style.textAlign = '';
+            }
+        }
+        // Ajustar tamaño de sprites en la página principal según alto disponible
+        if (typeof ajustarSpritesPaginaPrincipal === 'function') {
+            ajustarSpritesPaginaPrincipal();
+        }
+    }
+    window.addEventListener('resize', ajustarInfoPanelMovil);
+    window.addEventListener('DOMContentLoaded', ajustarInfoPanelMovil);
+    // Unificar onload: no sobreescribir más abajo
+    window.addEventListener('load', () => {
+        cargarSegmentos();
+        ajustarInfoPanelMovil();
+    });
+// Ajustar tamaño de sprites en la página principal según alto disponible (solo móviles)
+function ajustarSpritesPaginaPrincipal() {
+    const isMovil = isMovilAspect();
+    if (!isMovil) return;
+    // Buscar todos los sprites principales
+    const spriteElems = document.querySelectorAll('.sprite-main');
+    if (!spriteElems.length) return;
+    // Calcular tamaño ideal según alto disponible
+    const vh = window.innerHeight;
+    let ideal = Math.max(32, Math.floor(vh * 0.12)); // 12% del alto
+    spriteElems.forEach(el => {
+        el.style.width = ideal + 'px';
+        el.style.height = ideal + 'px';
+    });
+}
     const nubesCanvas = document.getElementById('nubes-canvas');
     if (!nubesCanvas) return;
     nubesCanvas.width = window.innerWidth;
@@ -7,11 +176,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const ctx = nubesCanvas.getContext('2d');
 
 
+    // Detectar modo debug solo si la URL contiene '?debug=1'
+    var debugMode = window.location.search.includes('debug=1');
     // Definir 4 tipos de nubes pixelart
     const nubePixelTypes = [
         [ // Tipo 1
-            [0,0,1,1,0,0],
-            [0,1,1,1,1,0],
             [1,1,1,1,1,1],
             [0,1,1,1,1,0],
             [0,0,0,0,0,0]
@@ -37,7 +206,7 @@ window.addEventListener('DOMContentLoaded', () => {
         ]
     ];
     const nubeColor = '#fff';
-    const pixelSize = 5;
+    const pixelSize = 8;
 
 
     // Generar nubes con posiciones, velocidades y tipo aleatorio
@@ -51,7 +220,7 @@ window.addEventListener('DOMContentLoaded', () => {
             x: Math.random() * nubesCanvas.width,
             y: 20 + Math.random() * (nubesCanvas.height * 0.7),
             speed: 0.12 + Math.random() * 0.18,
-            size: pixelSize * (1 + Math.floor(Math.random()*2)),
+            size: pixelSize * (1 + Math.floor(Math.random()*2)), // 8 o 16
             tipo: tipo
         });
     }
@@ -94,7 +263,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (nubeTimer >= nubeInterval && nubes.length < maxNubes) {
             nubeTimer = 0;
             const tipo = Math.floor(Math.random() * nubePixelTypes.length);
-            const size = pixelSize * (1 + Math.floor(Math.random()*2));
+            const size = pixelSize * (1 + Math.floor(Math.random()*2)); // 8 o 16
             const nubePixel = nubePixelTypes[tipo];
             const nubeWidth = nubePixel[0].length * size;
             nubes.push({
@@ -237,6 +406,12 @@ function fitNameToHeader(attempt = 0) {
 let segmentos = [];
 let segmentoElems = [];
 let highlightElem = null;
+// Cooldown por sprite para sonido de hover
+const hoverSoundCooldowns = Object.create(null);
+const HOVER_SOUND_COOLDOWN_MS = 100;
+// Cooldown global para todos los sonidos de la ventana principal
+let lastGlobalSfxTime = 0;
+const GLOBAL_SFX_COOLDOWN_MS = 40;
 let isLocked = false; // selección fijada mediante click
 let lockedIdx = null; // índice del segmento fijado
 let currentIdx = null; // índice actualmente resaltado
@@ -254,16 +429,45 @@ let overPanel = false;
 // Delays ajustables para sensación de rapidez
 const HOVER_OPEN_DELAY = 16;   // antes 50ms
 const HOVER_CLOSE_DELAY = 110; // antes 150ms
-const PANEL_INTERACT_ENABLE_DELAY = 50; // antes 80ms
-// límite máximo de alto de cada sprite relativo a la ventana
-const MAX_SPRITE_VH = 40; // porcentaje de alto de ventana
+const PANEL_INTERACT_ENABLE_DELAY = 30; // antes 80ms
+// límite base de alto de sprite y valores del preview
+const BASE_SPRITE_VH = 40; // fallback para escritorio u otros casos
 const PREVIEW_MAX_SPRITE_HO = 20; // porcentaje horizontal ideal (vw)
 const PREVIEW_MAX_SPRITE_VH = 16; // porcentaje vertical ideal (vh)
-// Propagar a CSS
-document.documentElement.style.setProperty('--sprite-max-vh', `${MAX_SPRITE_VH}vh`);
+
+// Umbral de relación de aspecto para considerar "modo móvil" (pantalla alta)
+const MOBILE_ASPECT_THRESHOLD = 1.6; // h > w * numero
+
+// Valor dinámico para el alto máximo del sprite (vh) según viewport en móvil
+let CURRENT_SPRITE_VH = BASE_SPRITE_VH;
+function computeDynamicSpriteVH() {
+    const w = window.innerWidth || 0;
+    const h = window.innerHeight || 0;
+    const isMovil = h > w * MOBILE_ASPECT_THRESHOLD; // criterio de pantalla "alta"
+    if (!isMovil) return BASE_SPRITE_VH;
+    // Mapear altura de ventana a un rango mayor en móvil para sprites más grandes
+    // Anteriormente: 38..56; ahora: 48..64 (el grid móvil capeará a ~58vh)
+    const minH = 560;  // a ~560px empieza a crecer
+    const maxH = 1200; // a 1200px alcanza el tope
+    const tRaw = (h - minH) / (maxH - minH);
+    const t = Math.max(0, Math.min(1, tRaw));
+    const minVH = 56, maxVH = 64;
+    return Math.round(minVH + t * (maxVH - minVH));
+}
+function updateDynamicSpriteCaps() {
+    CURRENT_SPRITE_VH = computeDynamicSpriteVH();
+    document.documentElement.style.setProperty('--sprite-max-vh', `${CURRENT_SPRITE_VH}vh`);
+}
+// Propagar caps iniciales a CSS
+updateDynamicSpriteCaps();
 document.documentElement.style.setProperty('--preview-max-vh', `${PREVIEW_MAX_SPRITE_VH}vh`);
 document.documentElement.style.setProperty('--preview-max-vw', `${PREVIEW_MAX_SPRITE_HO}vw`);
 let resizeRebuildTimer = null;
+
+// Helper: detectar modo móvil por relación de aspecto (pantalla alta)
+function isMovilAspect() {
+    return (window.innerHeight || 0) > (window.innerWidth || 0) * MOBILE_ASPECT_THRESHOLD;
+}
 
 // Utilidad: ¿el nodo B está dentro de A?
 function within(root, el) {
@@ -291,6 +495,9 @@ function cargarSegmentos() {
             // Exponer globalmente para utilidades externas (p.ej., PFP volador)
             try { window.segmentos = data; } catch {}
             mostrarSegmentos();
+        })
+        .catch(err => {
+            console.error('No se pudo cargar segmentos.json:', err);
         });
 }
 
@@ -298,20 +505,110 @@ function mostrarSegmentos() {
     const container = document.getElementById('canvas-container');
     container.innerHTML = '';
     segmentoElems = [];
-    // Configuración de retícula uniforme
-    const columnas = 8;
-    const gap = 8; // separación entre celdas
+    // Configuración de retícula uniforme (responsive)
+    const MAX_COLS = 20;   // máximo extendido
+    const gap = 8;         // separación entre celdas
     const maxW = Math.max(...segmentos.map(s => s.width));
     const maxH = Math.max(...segmentos.map(s => s.height));
     const GROUND_H = 12;   // altura del piso (pasto + tierra)
-    const cellW = maxW;
-    const cellH = maxH + GROUND_H; // reservamos espacio extra para el piso
-    const filas = Math.ceil(segmentos.length / columnas);
+    // Calcular escala por altura de ventana usando valor dinámico (vh)
+    const maxPx = Math.max(1, Math.floor(window.innerHeight * (CURRENT_SPRITE_VH / 100)));
+    let cellW = 1, cellH = 1; // basados en dimensiones ESCALADAS
+    {
+        let maxScaledW = 1, maxScaledH = 1;
+        for (const s of segmentos) {
+            const scale = Math.min(1, maxPx / Math.max(1, s.height));
+            const sw = Math.max(1, Math.round(s.width * scale));
+            const sh = Math.max(1, Math.round(s.height * scale));
+            if (sw > maxScaledW) maxScaledW = sw;
+            if (sh > maxScaledH) maxScaledH = sh;
+        }
+        cellW = maxScaledW;
+        cellH = maxScaledH + GROUND_H;
+    }
+    // En móvil: priorizar ajuste vertical del grid
+    const isMovil = isMovilAspect();
+    let columnas = 1;
+    let filas = 1;
+    if (isMovil) {
+    // Altura máxima del grid 60vh (tope solicitado)
+    const MAX_GRID_VH = 60;
+        const MAX_GRID_PX = Math.max(1, Math.floor(window.innerHeight * (MAX_GRID_VH / 100)));
+        // Asegurar que una fila quepa: limitar maxPx si fuera necesario (cellH = min(maxH, maxPx) + GROUND_H)
+        const capPxForGrid = Math.max(1, MAX_GRID_PX - GROUND_H);
+        const maxPxMobile = Math.min(maxPx, capPxForGrid);
+        // Recalcular cellW/cellH con el cap para determinar filas/columnas
+        let maxScaledW2 = 1, maxScaledH2 = 1;
+        for (const s of segmentos) {
+            const scale2 = Math.min(1, maxPxMobile / Math.max(1, s.height));
+            const sw2 = Math.max(1, Math.round(s.width * scale2));
+            const sh2 = Math.max(1, Math.round(s.height * scale2));
+            if (sw2 > maxScaledW2) maxScaledW2 = sw2;
+            if (sh2 > maxScaledH2) maxScaledH2 = sh2;
+        }
+        const cellW2 = maxScaledW2;
+        const cellH2 = maxScaledH2 + GROUND_H;
+        // Máximo de filas que caben en el alto permitido
+        const filasMax = Math.max(1, Math.floor((MAX_GRID_PX + gap) / (cellH2 + gap)));
+        filas = filasMax; // usar el máximo posible para reducir columnas y respetar altura
+        columnas = Math.max(1, Math.ceil(segmentos.length / filas));
+        // Aplicar dimensiones basadas en cellW2/child count
+        cellW = cellW2;
+        cellH = cellH2;
+        // Permitir scroll horizontal si el ancho excede la pantalla
+        container.style.overflowX = 'auto';
+        container.style.maxWidth = '100vw';
+        container.style.overflowY = 'hidden';
+        // Nota: altura real del contenedor se fijará debajo usando filas*cellH para no superar el tope
+    } else {
+        // Escritorio: priorizar ajuste horizontal como antes
+        const availW = Math.max(1, window.innerWidth - 24); // margen de seguridad
+        const canFit = Math.floor((availW + gap) / (cellW + gap));
+        columnas = Math.min(MAX_COLS, Math.max(1, canFit));
+        if (canFit >= 2) columnas = Math.max(2, Math.min(MAX_COLS, canFit));
+        filas = Math.ceil(segmentos.length / columnas);
+        container.style.overflowX = '';
+        container.style.maxWidth = '';
+        container.style.overflowY = '';
+    }
 
-    // Dimensiones del contenedor
+    // Dimensiones del contenedor y centrado en móvil si cabe
     container.style.position = 'relative';
-    container.style.width = (columnas * (cellW + gap) - gap) + 'px';
-    container.style.height = (filas * (cellH + gap) - gap) + 'px';
+    const gridWTotal = (columnas * (cellW + gap) - gap);
+    if (isMovil) {
+        const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+        if (gridWTotal <= vw) {
+            // Si el grid es más angosto que la pantalla, centrarlo
+            container.style.width = gridWTotal + 'px';
+            container.style.maxWidth = '100vw';
+            container.style.marginLeft = 'auto';
+            container.style.marginRight = 'auto';
+            container.style.overflowX = 'hidden';
+        } else {
+            // Si es más ancho, usar 100vw y permitir scroll horizontal
+            container.style.width = '100vw';
+            container.style.maxWidth = '100vw';
+            container.style.marginLeft = '0';
+            container.style.marginRight = '0';
+            container.style.overflowX = 'auto';
+        }
+    } else {
+        container.style.width = gridWTotal + 'px';
+        container.style.marginLeft = '';
+        container.style.marginRight = '';
+    }
+    // limitar altura en móvil para no exceder ~58vh
+    if (isMovil) {
+        const MAX_GRID_VH = 60;
+        const MAX_GRID_PX = Math.max(1, Math.floor(window.innerHeight * (MAX_GRID_VH / 100)));
+        const desiredH = (filas * (cellH + gap) - gap);
+        // overflowX configurado arriba según anchura relativa
+        container.style.overflowY = 'hidden';
+        container.style.height = Math.min(desiredH, MAX_GRID_PX) + 'px';
+    } else {
+        container.style.height = (filas * (cellH + gap) - gap) + 'px';
+        container.style.overflow = 'hidden';
+    }
 
     // Si el cursor sale del contenedor, ocultar info si no está bloqueado
     // pero NO si el puntero entra al panel de información
@@ -465,15 +762,16 @@ function mostrarSegmentos() {
         img.src = imgSrc;
         img.alt = segmento.nombre;
         // Calcular escala para limitar altura al porcentaje de la ventana
-        const maxPx = Math.max(1, Math.floor(window.innerHeight * (MAX_SPRITE_VH / 100)));
-        const scale = Math.min(1, maxPx / Math.max(1, segmento.height));
+    const scale = Math.min(1, maxPx / Math.max(1, segmento.height));
         const scaledW = Math.max(1, Math.round(segmento.width * scale));
         const scaledH = Math.max(1, Math.round(segmento.height * scale));
         img.style.width = scaledW + 'px';
         img.style.height = scaledH + 'px';
-        img.style.position = 'absolute';
+    img.style.position = 'absolute';
         img.style.pointerEvents = 'none'; // eventos pasan a la hitbox
     img.style.zIndex = '3'; // por encima del piso
+    // Mejor nitidez al escalar pixelart
+    img.style.imageRendering = 'pixelated';
     // Posición en retícula: centrar horizontalmente y apoyar los pies en el piso
     const offsetX = Math.floor((cellW - scaledW) / 2);
     const offsetY = Math.max(0, (maxH - scaledH)); // top = baseTop + (maxH - hEscalado)
@@ -493,27 +791,46 @@ function mostrarSegmentos() {
         hitbox.style.zIndex = '5';
         // Eventos en la hitbox (estabilizados con pequeños delays)
     hitbox.addEventListener('pointerenter', () => {
+        if (isLocked) return;
+        hoverIdx = idx;
+        // cancelar cierre si el puntero vuelve
+        if (hoverCloseTimerId) { clearTimeout(hoverCloseTimerId); hoverCloseTimerId = null; }
+        // programar apertura rápida para evitar parpadeo en microentradas
+        if (hoverOpenTimerId) clearTimeout(hoverOpenTimerId);
+        lastHoverIdxForOpen = idx;
+        hoverOpenTimerId = setTimeout(() => {
             if (isLocked) return;
-            hoverIdx = idx;
-            // cancelar cierre si el puntero vuelve
-            if (hoverCloseTimerId) { clearTimeout(hoverCloseTimerId); hoverCloseTimerId = null; }
-            // programar apertura rápida para evitar parpadeo en microentradas
-            if (hoverOpenTimerId) clearTimeout(hoverOpenTimerId);
-            lastHoverIdxForOpen = idx;
-            hoverOpenTimerId = setTimeout(() => {
-                if (isLocked) return;
-                if (lastHoverIdxForOpen !== idx) return;
-        // abrir con sonido de hover (sonará en mostrarInfo)
-        resaltarSegmento(idx);
-        mostrarInfo(segmento);
-            }, HOVER_OPEN_DELAY);
-        });
+            if (lastHoverIdxForOpen !== idx) return;
+            // Sonido de hover con cooldown por sprite
+            const now = Date.now();
+            const muteHover = isMovilAspect();
+            if (!muteHover) {
+                if ((!hoverSoundCooldowns[idx] || now - hoverSoundCooldowns[idx] > HOVER_SOUND_COOLDOWN_MS) && (now - lastGlobalSfxTime > GLOBAL_SFX_COOLDOWN_MS)) {
+                    window.SFX?.play('switchA', 0.18);
+                    hoverSoundCooldowns[idx] = now;
+                    lastGlobalSfxTime = now;
+                }
+            }
+            resaltarSegmento(idx);
+            mostrarInfo(segmento);
+        }, HOVER_OPEN_DELAY);
+    });
         // Evitar spam de abrir mientras se mueve dentro de la misma área (no necesitamos mousemove)
         // hitbox.addEventListener('mousemove', ... ) eliminado a propósito
         hitbox.addEventListener('pointerleave', (e) => {
             if (isLocked) return;
-            // Si entramos al panel, no cerrar
-            if (within(infoPanel, e.relatedTarget)) return;
+            // Si el cursor entra a cualquier parte de la ventana de información (incluyendo borde y elementos hijos), desactivar interactividad principal
+            let target = e.relatedTarget;
+            if (target && (target === infoPanel || within(infoPanel, target))) {
+                // Simular click: fijar selección y mostrar info
+                isLocked = true;
+                lockedIdx = idx;
+                window.SFX?.play('clickB', 0.20);
+                resaltarSegmento(idx);
+                mostrarInfo(segmentos[idx], { suppressOpenSfx: true });
+                skipNextDocUnlock = true;
+                return;
+            }
             if (hoverIdx === idx) hoverIdx = null;
             // cerrar con retraso breve para permitir viaje hacia el panel
             if (hoverOpenTimerId) { clearTimeout(hoverOpenTimerId); hoverOpenTimerId = null; }
@@ -524,6 +841,8 @@ function mostrarSegmentos() {
                 const overTriggerAgain = document.elementFromPoint?.(e.clientX, e.clientY) === hitbox;
                 if (within(infoPanel, document.activeElement) || overPanel) return;
                 quitarResaltado(idx);
+                // Iniciar cooldown para este sprite
+                hoverSoundCooldowns[idx] = Date.now();
             }, HOVER_CLOSE_DELAY);
         });
         // Click para fijar selección y permitir interactuar con el panel sin perderla
@@ -699,7 +1018,7 @@ function mostrarInfo(segmento, opts = {}) {
     infoPanel.style.pointerEvents = 'none';
     infoPanel.style.bottom = '0';
     infoPanel.style.opacity = '1';
-    if (!opts.suppressOpenSfx) {
+    if (!opts.suppressOpenSfx && !isMovilAspect()) {
         window.SFX?.play('switchA', 0.18);
     }
 
@@ -1141,7 +1460,7 @@ function ocultarInfo() {
     // Animar salida: desvanecer y deslizar ligeramente hacia abajo
     infoPanel.style.opacity = '0';
     infoPanel.style.bottom = '-10px';
-    window.SFX?.play('switchB', 0.18);
+    if (!isMovilAspect()) window.SFX?.play('switchB', 0.18);
     // Bloquear interacción durante el fade-out para no robar hover del trigger
     infoPanel.style.pointerEvents = 'none';
     const myToken = panelAnimToken; // snapshot del estado en el momento de ocultar
@@ -1164,6 +1483,27 @@ function ocultarInfo() {
     }, 80);
 }
 
+// Capa de fondo oscuro con gradiente que cubre el 30% inferior, más transparente arriba y 100% opacidad abajo
+function agregarFondoOscuroDegradado() {
+    let fondoOscuro = document.getElementById('fondo-oscuro-degradado');
+    if (!fondoOscuro) {
+        fondoOscuro = document.createElement('div');
+        fondoOscuro.id = 'fondo-oscuro-degradado';
+        fondoOscuro.style.position = 'fixed';
+        fondoOscuro.style.left = '0';
+        // Ubicado en el 30% inferior
+        fondoOscuro.style.top = '70vh';
+        fondoOscuro.style.width = '100vw';
+        fondoOscuro.style.height = '30vh';
+        fondoOscuro.style.pointerEvents = 'none';
+        fondoOscuro.style.zIndex = '12'; // Por delante de las nubes, detrás de los pisos
+    // Gradiente: transparente arriba, 60% opacidad abajo
+    fondoOscuro.style.background = 'linear-gradient(to bottom, rgba(20,20,30,0.0) 0%, rgba(20,20,30,0.6) 100%)';
+        document.body.appendChild(fondoOscuro);
+    }
+}
+window.addEventListener('DOMContentLoaded', agregarFondoOscuroDegradado);
+
 if (imageUpload) {
     imageUpload.addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -1180,13 +1520,16 @@ if (imageUpload) {
     });
 }
 
-window.onload = cargarSegmentos;
+// El onload global ya es gestionado arriba; evitar sobrescribirlo de nuevo
+// window.onload = cargarSegmentos;
 
 // Ajustar zona segura al redimensionar ventana
 window.addEventListener('resize', () => {
     updateSafeZone();
     // volver a ajustar nombre por cambios de ancho
     fitNameToHeader();
+    // Actualizar caps dinámicos de sprites antes de recalcular retícula
+    updateDynamicSpriteCaps();
     // Recalcular escalado/retícula con debounce
     clearTimeout(resizeRebuildTimer);
     resizeRebuildTimer = setTimeout(() => {
@@ -1266,6 +1609,12 @@ function rgbToHex8(r,g,b,a=255){
 function renderPalette(colors){
     if (!paletteSwatches) return;
     paletteSwatches.innerHTML = '';
+    // Exponer cantidad de swatches para layout responsivo en móvil
+    try {
+        const count = Math.max(1, colors ? colors.length : 0);
+        paletteSwatches.style.setProperty('--swatch-count', count);
+        paletteSwatches.style.setProperty('--swatch-cols', Math.min(6, count));
+    } catch {}
     if (!colors || !colors.length) {
         // Si no hay colores, dejar vacío (el contenedor mantiene título "Paleta")
         return;
@@ -1410,3 +1759,52 @@ const ENABLE_PREVIEW_CONTROLS = false;
     vhInput.addEventListener('input', apply);
     vwInput.addEventListener('input', apply);
 })();
+
+// Barra de carga: duración depende del modo debug
+function iniciarBarraCarga() {
+    const barra = document.getElementById('loader-progress');
+    if (!barra) return;
+    barra.style.width = '0%';
+    let start = null;
+    // Detectar modo debug
+    const isDebug = window.DEBUG === true || document.body.classList.contains('debug');
+    const normalDuration = 3000;
+    const debugDuration = 1000;
+    const duration = isDebug ? debugDuration : normalDuration;
+    // Generar hasta 4 puntos de pausa aleatorios entre 10% y 90% (solo si no debug)
+    let numPauses = isDebug ? 0 : Math.floor(2 + Math.random() * 3); // 0 si debug, 2-4 si normal
+    let freezePoints = [];
+    for (let i = 0; i < numPauses; i++) {
+        freezePoints.push(0.1 + Math.random() * 0.8);
+    }
+    freezePoints.sort((a, b) => a - b);
+    let freezeDurations = freezePoints.map(() => 300 + Math.random() * 700); // 0.3 a 1.0 segundos
+    let freezeIdx = 0;
+    let frozen = false;
+    function animarBarra(ts) {
+        if (!start) start = ts;
+        let elapsed = ts - start;
+        let pct = Math.min(1, elapsed / duration);
+        if (freezeIdx < freezePoints.length && pct >= freezePoints[freezeIdx]) {
+            if (!frozen) {
+                frozen = true;
+                setTimeout(() => {
+                    frozen = false;
+                    freezeIdx++;
+                    requestAnimationFrame(animarBarra);
+                }, freezeDurations[freezeIdx]);
+                return;
+            }
+        }
+        if (!frozen) {
+            barra.style.width = (pct * 100) + '%';
+            if (pct < 1) {
+                requestAnimationFrame(animarBarra);
+            } else {
+                barra.style.width = '100%';
+            }
+        }
+    }
+    requestAnimationFrame(animarBarra);
+}
+// Llama iniciarBarraCarga() cuando inicie la pantalla de carga
